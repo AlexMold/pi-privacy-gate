@@ -25,7 +25,18 @@ export interface GateDecision {
 export interface GateConfig {
   withholdCategories: string[];
   redactCategories: string[];
+  spanConfidenceThreshold: number;
+  retryTimeoutSec: number;
 }
+
+export const DEFAULT_GATE_CONFIG: GateConfig = {
+  withholdCategories: DEFAULT_WITHHOLD_CATEGORIES,
+  redactCategories: DEFAULT_REDACT_CATEGORIES,
+  spanConfidenceThreshold: 0.5,
+  retryTimeoutSec: 5,
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class PrivacyGate {
   private cache = new Map<string, GateDecision>();
@@ -34,19 +45,33 @@ export class PrivacyGate {
 
   constructor(
     scan: ScanFn,
-    config: GateConfig = {
-      withholdCategories: DEFAULT_WITHHOLD_CATEGORIES,
-      redactCategories: DEFAULT_REDACT_CATEGORIES,
-    },
+    config: Partial<GateConfig> = {},
   ) {
     this.scan = scan;
-    this.config = config;
+    this.config = { ...DEFAULT_GATE_CONFIG, ...config };
+  }
+
+  /** scan with D-1 retry: retry once per second until retryTimeoutSec elapses, then throw. */
+  private async scanWithRetry(text: string): Promise<{ spans: PredictedSpan[] }> {
+    const deadline = Date.now() + this.config.retryTimeoutSec * 1000;
+    let lastErr: unknown;
+    for (;;) {
+      try {
+        return await this.scan(text);
+      } catch (e) {
+        lastErr = e;
+        if (Date.now() >= deadline) throw lastErr;
+        await sleep(1000);
+      }
+    }
   }
 
   async decide(text: string): Promise<GateDecision> {
     const hit = this.cache.get(text);
     if (hit) return hit;
-    const { spans } = await this.scan(text);
+    const { spans: raw } = await this.scanWithRetry(text);
+    // A.20 calibration: only confident spans count
+    const spans = raw.filter((s) => s.score >= this.config.spanConfidenceThreshold);
     const categories = [...new Set(spans.map((s) => s.label))];
     let decision: GateDecision;
     if (spans.some((s) => this.config.withholdCategories.includes(s.label))) {

@@ -25,10 +25,10 @@
 - [x] Unit-тесты scan API на канонических примерах (email, phone, account_number, private_person)
 
 ### 3. M2 — Механика гейта
-- [ ] Хук `tool_result`: сканировать все tool results; спаны withhold-категорий (A-1) → контент в side-store, в контекст плейсхолдер; остальные спаны → `[REDACTED_category]`
-- [ ] Хук `before_provider_request`: сканировать payload, redact спанов в user-сообщениях и остаточном контенте; инжектированные секции (system/memory/скиллы) не трогать
-- [ ] Уведомления через ui.notify (TUI/RPC-safe, без диалогов): «N spans redacted», «file withheld»
-- [ ] Unit-тесты: withhold, redact, плейсхолдер, освобождение инжектированного контекста
+- [x] Хук `tool_result`: сканировать все tool results; спаны withhold-категорий (A-1) → контент в side-store, в контекст плейсхолдер; остальные спаны → `[REDACTED_category]`
+- [x] Хук `before_provider_request`: сканировать payload, redact спанов в user-сообщениях и остаточном контенте; инжектированные секции (system/memory/скиллы) не трогать
+- [x] Уведомления через ui.notify (TUI/RPC-safe, без диалогов): «N spans redacted», «file withheld»
+- [x] Unit-тесты: withhold, redact, плейсхолдер, освобождение инжектированного контекста
 
 ### 4. M3 — privacy_analyze
 - [ ] Инструмент `privacy_analyze(question, fileRef)`: чтение side-store, вызов локальной модели из конфига (provider/model через ctx.modelRegistry), возврат ответа
