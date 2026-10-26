@@ -102,6 +102,12 @@ export default function (pi: ExtensionAPI) {
         await pi.setModel(virtual);
         ctx.ui.notify("pi-privacy: gate ON — continuing on your current model; private content goes local", "info");
       } else if (sub === "off") {
+        if (!gateActive(ctx)) {
+          const cur = ctx.model;
+          preOnModel = null;
+          ctx.ui.notify(`pi-privacy: gate is not active (session model: ${cur ? `${cur.provider}/${cur.id}` : "none"}). Nothing to turn off.`, "info");
+          return;
+        }
         let target = preOnModel ? ctx.modelRegistry.find(preOnModel.provider, preOnModel.id) : undefined;
         if (!target) {
           const cfg = loadConfig();
@@ -120,6 +126,14 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("pi-privacy: usage — /privacy on|off|status", "warning");
       }
     },
+  });
+
+  /** M5: switching the model away from privacy/auto turns the gate off — make it visible. */
+  pi.on("model_select", async (event, ctx) => {
+    const wasActive = event.previousModel?.provider === "pi-privacy" && event.previousModel?.id === "auto";
+    if (wasActive && !gateActive(ctx)) {
+      ctx.ui.notify(`pi-privacy: gate OFF — model switched to ${event.model.provider}/${event.model.id}`, "info");
+    }
   });
 
   pi.registerCommand("privacy-setup", {
