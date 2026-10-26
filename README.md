@@ -42,11 +42,19 @@ Supported platforms: macOS (arm64/x64), Linux (x64/arm64). Windows is out of sco
 }
 ```
 
-- `localModel` — which registered Pi model handles private analysis. Configure the
-  provider in Pi first (`/login ollama`, `/login llama.cpp`), then point here.
+- `localModel` — which registered Pi model handles private analysis. The **port is not
+  configured here**: pi-privacy resolves `provider`/`model` through Pi's model registry.
+  Declare where your local server listens in Pi first:
+  - Ollama / LM Studio / vLLM / SGLang or any OpenAI-compatible server: add it to
+    `~/.pi/agent/models.json` with its `baseUrl` (e.g. `http://localhost:11434/v1`),
+    `api: "openai-completions"`, and your models — then reference the provider here.
+  - llama.cpp router: `/login llama.cpp` (stores the URL) or `LLAMA_BASE_URL`/`LLAMA_API_KEY`
+    environment variables.
 - `detector` — how PII scanning is performed. Three modes:
-  - `"managed"` (default): pi-privacy installs and supervises its own llama-server with
-    the PII-Tracer weights (`/privacy-setup`).
+  - `{ "mode": "managed", "port": 18080 }` (default): pi-privacy installs and supervises
+    its own llama-server with the PII-Tracer weights (`/privacy-setup`). The **port** is
+    `detector.port` in this file → `PI_PRIVACY_PORT` environment variable → `18080`.
+    Changing it takes effect on the next session start — no re-setup needed.
   - `{ "mode": "http", "url": "http://127.0.0.1:8002/v1/scoring" }` — any HTTP endpoint that
     accepts `{"text": "..."}` and returns `{"spans": [{"start", "end", "label", "score"}]}`
     (char offsets). For example the PII-Tracer vLLM scoring adapter or your own service.
@@ -57,6 +65,13 @@ Supported platforms: macOS (arm64/x64), Linux (x64/arm64). Windows is out of sco
   Span output is validated (bounds clamped, labels checked) before it reaches the gate.
   With `http`/`command`, pi-privacy never starts or manages a detector process — that
   backend is entirely yours.
+- `PI_PRIVACY_DIR` — where pi-privacy keeps its state (`~/.pi-privacy` by default:
+  weights, llama-server binary, `state.json`, this config). Set it to relocate everything.
+
+**Ports summary:** pi-privacy itself owns one port — the managed llama-server detector
+(`detector.port` / `PI_PRIVACY_PORT`, default 18080). The local analysis model's port is
+declared in Pi's provider configuration (`models.json` `baseUrl` or `/login llama.cpp`),
+not in this file — pi-privacy calls it through Pi's model registry.
 - `cloudModel` — fallback routing target for a fresh session with no prior responses. `/privacy on` keeps your current model (e.g. deepseek-v4-pro) as the orchestrator; private content goes to the local model inside `privacy_analyze`.
 - `withholdCategories` — a tool result containing any span of these categories is withheld
   entirely: content is stored locally and the model sees only a placeholder.

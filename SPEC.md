@@ -53,6 +53,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 
 ```json
 {
+  "detector": { "mode": "managed", "port": 18080 },
   "localModel": { "provider": "ollama", "model": "qwen2.5:3b" },
   "cloudModel": { "provider": "anthropic", "model": "claude-sonnet-4-5" } // fallback only: route follows the session's current model,
   "withholdCategories": ["account_number", "secret", "private_address"],

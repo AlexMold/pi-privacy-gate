@@ -6,7 +6,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { setup, ensureRunning, stopServer, loadState, isHealthy } from "../src/server.ts";
+import { setup, ensureRunning, stopServer, loadState, isHealthy, detectorPort } from "../src/server.ts";
 import { PiiDetector } from "../src/detector.ts";
 import { PrivacyGate, placeholderText } from "../src/gate.ts";
 import { put } from "../src/store.ts";
@@ -56,7 +56,7 @@ function buildScanner(cfg: PrivacyConfig, state: ReturnType<typeof loadState>): 
   if (d.mode === "http") return new HttpScanner(d.url, d.timeoutMs);
   if (d.mode === "command") return new CommandScanner(d.command, d.timeoutMs);
   if (!state) throw new Error("detector.mode is \"managed\" but the detector is not installed. Run /privacy-setup");
-  return new PiiDetector(state.weightsDir, `http://127.0.0.1:${state.port}`);
+  return new PiiDetector(state.weightsDir, `http://127.0.0.1:${detectorPort()}`);
 }
 
 /** A-3: session- or file-level allowlist bypass. */
@@ -187,8 +187,9 @@ export default function (pi: ExtensionAPI) {
       if (d.mode === "managed") {
         const state = loadState();
         if (!state) { ctx.ui.notify("pi-privacy: not installed. Run /privacy-setup", "warning"); return; }
-        const healthy = await isHealthy(state.port);
-        ctx.ui.notify(`pi-privacy: detector ${healthy ? "running" : "DOWN"} (managed llama-server, port ${state.port})`, healthy ? "info" : "warning");
+        const port = detectorPort();
+        const healthy = await isHealthy(port);
+        ctx.ui.notify(`pi-privacy: detector ${healthy ? "running" : "DOWN"} (managed llama-server, port ${port})`, healthy ? "info" : "warning");
       } else if (d.mode === "http") {
         ctx.ui.notify(`pi-privacy: detector http → ${d.url}`, "info");
       } else {

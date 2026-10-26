@@ -21,7 +21,7 @@ export interface SpanScanner {
 }
 
 export type DetectorConfig =
-  | { mode: "managed" }
+  | { mode: "managed"; port?: number }
   | { mode: "http"; url: string; timeoutMs?: number }
   | { mode: "command"; command: string; timeoutMs?: number };
 

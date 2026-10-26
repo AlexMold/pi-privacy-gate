@@ -24,6 +24,18 @@ const WEIGHT_FILES = [
 ];
 const DEFAULT_PORT = 18080;
 
+/** Managed llama-server port: privacy-router.json detector.port > PI_PRIVACY_PORT > 18080. */
+export function detectorPort(): number {
+  try {
+    const cfg = JSON.parse(readFileSync(join(DATA_DIR, "privacy-router.json"), "utf8")) as { detector?: { port?: number } };
+    const p = cfg.detector?.port;
+    if (typeof p === "number" && p > 0 && p < 65536) return p;
+  } catch { /* absent/invalid config -> next source */ }
+  const env = Number(process.env.PI_PRIVACY_PORT);
+  if (env > 0 && env < 65536) return env;
+  return DEFAULT_PORT;
+}
+
 interface State {
   weightsDir: string;
   binaryPath: string;
@@ -117,8 +129,9 @@ export async function setup(): Promise<State> {
   await ensureWeights(weightsDir);
   console.log("binary:");
   const { path: binaryPath, tag } = await ensureBinary();
-  const next: State = state ?? { weightsDir, binaryPath, port: DEFAULT_PORT, version: tag, installedAt: new Date().toISOString() };
+  const next: State = state ?? { weightsDir, binaryPath, port: detectorPort(), version: tag, installedAt: new Date().toISOString() };
   next.binaryPath = binaryPath;
+  next.port = detectorPort(); // pick up config changes without re-running setup
   if (tag !== "cached") next.version = tag;
   saveState(next);
   await startServer(next);
@@ -129,11 +142,13 @@ let child: ChildProcess | null = null;
 
 /** Start llama-server if not already serving. Returns the port. */
 export async function startServer(state: State): Promise<number> {
-  if (await isHealthy(state.port)) return state.port;
+  const port = detectorPort(); // config change takes effect without re-running /privacy-setup
+  state.port = port;
+  if (await isHealthy(port)) return port;
   const args = [
     "-m", join(state.weightsDir, "pplx-pii-masking-backbone-f16.gguf"),
     "--host", "127.0.0.1",
-    "--port", String(state.port),
+    "--port", String(port),
     "--embeddings", "--pooling", "none",
     "-c", "4096", "-b", "4096", "-ub", "4096",
   ];
@@ -164,7 +179,7 @@ export async function startServer(state: State): Promise<number> {
   });
   // wait for health, max 30s
   for (let i = 0; i < 60; i++) {
-    if (await isHealthy(state.port)) return state.port;
+    if (await isHealthy(port)) { saveState(state); return port; }
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error("llama-server did not become healthy in 30s");
