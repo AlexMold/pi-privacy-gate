@@ -21,6 +21,8 @@ export const CONFIG_FILE_LABEL = "privacy-router.json";
 
 export interface PrivacyConfig {
   localModel: { provider: string; model: string };
+  /** cloud model privacy/auto routes to; empty = routing disabled with instructive error */
+  cloudModel: { provider: string; model: string };
   withholdCategories: string[];
   redactCategories: string[];
   retryTimeoutSec: number;
@@ -38,6 +40,7 @@ export function defaultConfig(): PrivacyConfig {
       provider: process.env.PI_PRIVACY_LOCAL_PROVIDER ?? "ollama",
       model: process.env.PI_PRIVACY_LOCAL_MODEL ?? "qwen2.5:3b",
     },
+    cloudModel: { provider: "", model: "" },
     withholdCategories: [...DEFAULT_WITHHOLD_CATEGORIES],
     redactCategories: [...DEFAULT_REDACT_CATEGORIES],
     retryTimeoutSec: 5,
@@ -55,6 +58,7 @@ export function loadConfig(): PrivacyConfig {
     const d = defaultConfig();
     return {
       localModel: { ...d.localModel, ...(raw.localModel ?? {}) },
+      cloudModel: { ...d.cloudModel, ...(raw.cloudModel ?? {}) },
       withholdCategories: raw.withholdCategories ?? d.withholdCategories,
       redactCategories: raw.redactCategories ?? d.redactCategories,
       retryTimeoutSec: raw.retryTimeoutSec ?? d.retryTimeoutSec,

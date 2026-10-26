@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+// Claims covered: A-1 (withhold), A-2 (redact), D-5 (enforcement outside the LLM)
 import { PrivacyGate, placeholderText } from "../src/gate.ts";
 import { put, get } from "../src/store.ts";
 import type { PredictedSpan } from "../src/viterbi.ts";
@@ -21,7 +22,7 @@ test("redact when spans hit redactCategories only", async () => {
   const g = gateWith([s("private_email", 0, 23)]);
   const d = await g.decide("daniels@meridiancap.com");
   assert.equal(d.action, "redact");
-  assert.equal(d.masked, "[PRIVATE_EMAIL]");
+  assert.equal(d.masked, "[REDACTED_PRIVATE_EMAIL]");
 });
 
 test("pass on clean content", async () => {

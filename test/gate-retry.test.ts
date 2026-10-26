@@ -40,7 +40,7 @@ test("span above threshold acts", async () => {
   const g = new PrivacyGate(async () => ({ spans: [s("private_email", 0, 9, 0.8)] }), { spanConfidenceThreshold: 0.5 });
   const d = await g.decide("a@b.com");
   assert.equal(d.action, "redact");
-  assert.equal(d.masked, "[PRIVATE_EMAIL]");
+  assert.equal(d.masked, "[REDACTED_PRIVATE_EMAIL]");
 });
 
 test("custom withhold categories from config", async () => {

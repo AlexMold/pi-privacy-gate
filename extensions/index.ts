@@ -57,6 +57,56 @@ function isAllowed(ctx: { sessionManager: { getSessionId(): string } }, input: R
 }
 
 export default function (pi: ExtensionAPI) {
+  /** M5: gate is active only when the session model is privacy/auto (design tree #12). */
+  const gateActive = (ctx: { model?: { provider?: string; id?: string } }) =>
+    ctx.model?.provider === "pi-privacy" && ctx.model?.id === "auto";
+
+  pi.registerVirtualModel({
+    provider: "pi-privacy",
+    id: "auto",
+    name: "Privacy Auto",
+    thinkingLevels: ["off", "low", "medium", "high"],
+    route(request, ctx) {
+      const cfg = loadConfig();
+      const { provider, model: id } = cfg.cloudModel;
+      if (!provider || !id) {
+        throw new Error(`pi-privacy: cloudModel not set in ${configFile()}. Add {"cloudModel": {"provider": "<provider>", "model": "<model>"}}`);
+      }
+      const model = ctx.modelRegistry.find(provider, id);
+      if (!model) throw new Error(`pi-privacy: cloud model ${provider}/${id} not in the catalog`);
+      return { model, thinkingLevel: request.thinkingLevel };
+    },
+  });
+
+  pi.registerCommand("privacy", {
+    description: "Enable/disable the privacy gate in this session: /privacy on|off",
+    handler: async (args, ctx) => {
+      const sub = args.trim().toLowerCase();
+      const virtual = ctx.modelRegistry.find("pi-privacy", "auto");
+      if (!virtual) { ctx.ui.notify("pi-privacy: virtual model pi-privacy/auto not registered", "error"); return; }
+      if (sub === "on") {
+        const cfg = loadConfig();
+        if (!cfg.cloudModel.provider || !cfg.cloudModel.model) {
+          ctx.ui.notify(`pi-privacy: cloudModel not set in ${configFile()}. Privacy mode needs a cloud target.`, "error");
+          return;
+        }
+        await pi.setModel(virtual);
+        ctx.ui.notify(`pi-privacy: gate ON — routing to ${cfg.cloudModel.provider}/${cfg.cloudModel.model}`, "info");
+      } else if (sub === "off") {
+        const cfg = loadConfig();
+        const cloud = cfg.cloudModel.provider && cfg.cloudModel.model ? ctx.modelRegistry.find(cfg.cloudModel.provider, cfg.cloudModel.model) : undefined;
+        if (!cloud) { ctx.ui.notify(`pi-privacy: cannot switch off — cloudModel not set in ${configFile()}`, "error"); return; }
+        await pi.setModel(cloud);
+        ctx.ui.notify(`pi-privacy: gate OFF — direct ${cfg.cloudModel.provider}/${cfg.cloudModel.model}`, "info");
+      } else if (sub === "status" || sub === "") {
+        const active = gateActive(ctx);
+        ctx.ui.notify(`pi-privacy: gate ${active ? "ON (pi-privacy/auto)" : "OFF"}`, "info");
+      } else {
+        ctx.ui.notify("pi-privacy: usage — /privacy on|off|status", "warning");
+      }
+    },
+  });
+
   pi.registerCommand("privacy-setup", {
     description: "Install and start the pi-privacy PII detector (weights + llama-server)",
     handler: async (_args, ctx) => {
@@ -125,6 +175,7 @@ export default function (pi: ExtensionAPI) {
 
   /** M2/M4: withhold or redact tool results before they enter context (SPEC A-1/A-2, D-1). */
   pi.on("tool_result", async (event, ctx) => {
+    if (!gateActive(ctx)) return undefined;
     const g = initGate();
     if (!g) return undefined;
     if (isAllowed(ctx, event.input)) return undefined;
@@ -161,6 +212,7 @@ export default function (pi: ExtensionAPI) {
 
   /** M2/M4: redact PII spans in user messages before each provider request; block when detector is down (D-1). */
   pi.on("context", async (event, ctx) => {
+    if (!gateActive(ctx)) return undefined;
     const g = initGate();
     if (!g) return undefined;
     const messages = [];
@@ -205,9 +257,13 @@ export default function (pi: ExtensionAPI) {
       }
       const modelRef = config.localModel;
       const complete = async (ref: { provider: string; model: string }, system: string, user: string): Promise<string> => {
-        const model = ctx.modelRegistry.find(ref.provider, ref.model);
+        let model = ctx.modelRegistry.find(ref.provider, ref.model);
+        if (!model) {
+          // stale catalog (e.g. models.json drift): refresh once, then retry
+          try { await ctx.modelRegistry.refresh(); model = ctx.modelRegistry.find(ref.provider, ref.model); } catch { /* keep original error */ }
+        }
         if (!model) throw new Error(`local model ${ref.provider}/${ref.model} not found in the model registry`);
-        const resp = await ctx.modelRegistry.completeSimple(model, { systemPrompt: system, messages: [{ role: "user", content: user }] });
+        const resp = await ctx.modelRegistry.streamSimple(model, { systemPrompt: system, messages: [{ role: "user", content: user }] }).result();
         const content = resp.content;
         return typeof content === "string" ? content : content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
       };

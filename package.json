@@ -5,7 +5,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "node --test 'test/*.test.ts'"
+    "test": "node --test 'test/*.test.ts'",
+    "lint:claims": "node scripts/lint-claims.ts",
+    "bench:fetch": "node scripts/fetch-piitrace.ts",
+    "bench:piitrace": "node scripts/benchmark.ts"
   },
   "keywords": ["pi-package", "privacy", "pii", "llm", "redaction"],
   "peerDependencies": {

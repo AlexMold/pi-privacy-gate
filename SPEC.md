@@ -26,9 +26,9 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | D-3 | D | The answer of `privacy_analyze` MUST pass through the detector before entering conversation context (spans redacted per A-2) |
 | D-4 | D | Injected sections (system prompt, memory, AGENTS.md, skills) are exempt from the gate. The gate scans user messages and tool results only |
 | D-5 | D | Gate mechanisms MUST NOT rely on prompt instructions ("do not send my data") — enforcement is outside the LLM |
-| E-1 | E | Canary suite results: planted PII of all 9 categories withheld/redacted; FP-rate on benign corpus measured (filled in M6) |
-| E-2 | E | PII-TRACE subset F1 for the detector (filled in M6) |
-| E-3 | E | Dogfooding observations: provider logs inspected for egress on real sessions (filled in M6) |
+| E-1 | E | Canary suite results: 4/4 synthetic files (bank CSV, ISP agreement, medical note, parking ticket) withheld on A-1 categories; benign corpus (4 files) — 0 withholds, 1 false-positive span (2026-10-26) |
+| E-2 | E | PII-TRACE (full 500-conversation release, 2653 gold spans): micro exact typed-span F1 72.7% (P 70.8 / R 74.7), untyped F1 80.8%. Per-label: account_number recall 98% (220/224) with 373 FP; secret recall 18.6% (39/210); other_pii recall 1.4% (3/211) |
+| E-3 | E | Dogfooding (2026-10-26, 3 scripted sessions with privacy/auto on google/gemini-3.7-flash): run 1 — withhold held, privacy_analyze failed on stale ollama catalog (fixed: refresh fallback); run 2 — found mask self-trigger recursion (fixed: SPEC A-2 format); run 3 — full E2E green, cloud saw only [REDACTED_*]. Journal: bench/dogfood-journal.md |
 
 ## Design tree (settled decisions)
 
@@ -54,6 +54,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 ```json
 {
   "localModel": { "provider": "ollama", "model": "qwen2.5:3b" },
+  "cloudModel": { "provider": "anthropic", "model": "claude-sonnet-4-5" },
   "withholdCategories": ["account_number", "secret", "private_address"],
   "redactCategories": ["private_person", "private_email", "private_phone", "private_url", "private_date", "other_pii"],
   "retryTimeoutSec": 5,
@@ -66,11 +67,29 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 `spanConfidenceThreshold` / `sensitivityThreshold` are calibration points (A.20): defaults
 declared, recalibration documented after M6 measurements.
 
-## Assurance (B.3 — to be completed in M6)
+## Assurance (B.3 — filled 2026-10-26)
 
-- **Target claim:** in `privacy/auto` mode, no span of withhold categories from tool results
-  or user messages egresses to the cloud provider.
-- **Use:** v1 release decision.
-- **Disposition / limitations / reopen conditions:** filled in M6 (minimum reopen conditions:
-  demonstrated egress; PII Tracer update or retraction; Pi hook semantics change; latency
-  budget exceeded).
+```text
+AssuranceResult:
+  targetClaimRef:  "In privacy/auto mode, no PII span of withhold categories from tool
+                    results or user messages egresses to the cloud provider"
+  assuranceUse:    v1 local release + dogfooding decision
+  basisRefs:       E-1 (canary), E-2 (PII-TRACE), E-3 (dogfooding), unit tests (39)
+  disposition:     supported-for-use (local v1), with limitations below
+  limitationsAndNotCarried:
+    - secret recall 18.6% on PII-TRACE synthetic secrets (real API keys detected well in
+      spike; synthetic credential formats are missed) — secret is best-effort
+    - other_pii recall 1.4% — the detector rarely emits this label
+    - account_number: 373 FP on benchmark -> extra withholds (friction, safe direction)
+    - injected context (memory/AGENTS.md/skills) is exempt by design (D-4)
+    - image content in tool results is not scanned in v1
+    - Windows unsupported; detector-down user-message blocking relies on context
+      replacement, not provider-level refusal
+    - PII-TRACE is a controlled synthetic benchmark, not deployment-level evidence
+  reopenCondition:
+    - demonstrated egress incident in dogfooding or red-team
+    - PII-Tracer weights update, retraction, or license change
+    - Pi changes semantics of tool_result / context / virtual-model hooks
+    - latency budget exceeded (currently ~0.35ms/token + ~70ms/request, 1024-token windows)
+    - threshold recalibration on real deployment data shows material F1 drop
+```

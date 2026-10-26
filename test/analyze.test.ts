@@ -9,10 +9,10 @@ test("returns masked answer for a stored file", async () => {
     assert.ok(user.includes("4026-3181-1900-8877")); // local model sees the raw content
     return "The account 4026-3181-1900-8877 has balance $1200.";
   };
-  const rescan = async (text: string) => text.replace("4026-3181-1900-8877", "[ACCOUNT_NUMBER]");
+  const rescan = async (text: string) => text.replace("4026-3181-1900-8877", "[REDACTED_ACCOUNT_NUMBER]");
   const res = await analyzeWithheld(key, "what is the balance?", complete, rescan);
   assert.ok(!res.isError);
-  assert.equal(res.content, "The account [ACCOUNT_NUMBER] has balance $1200.");
+  assert.equal(res.content, "The account [REDACTED_ACCOUNT_NUMBER] has balance $1200.");
 });
 
 test("errors on unknown fileRef", async () => {

@@ -112,8 +112,10 @@ export function decodeSpans(
 
 export function maskText(text: string, spans: PredictedSpan[]): string {
   let masked = text;
+  // SPEC A-2 format: [REDACTED_category]. The bare [CATEGORY] form self-triggers
+  // the detector (dogfooding finding 2026-10-26); REDACTED_ does not.
   for (const s of [...spans].sort((a, b) => b.start - a.start)) {
-    masked = masked.slice(0, s.start) + `[${s.label.toUpperCase()}]` + masked.slice(s.end);
+    masked = masked.slice(0, s.start) + `[REDACTED_${s.label.toUpperCase()}]` + masked.slice(s.end);
   }
   return masked;
 }

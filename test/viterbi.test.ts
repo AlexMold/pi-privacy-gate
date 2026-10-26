@@ -51,5 +51,5 @@ test("no spans on all-O path", () => {
 test("maskText replaces spans with category tags", () => {
   const text = "Hi, I'm Daniel Whitfield";
   const masked = maskText(text, [{ start: 8, end: 24, label: "private_person", score: 1 }]);
-  assert.equal(masked, "Hi, I'm [PRIVATE_PERSON]");
+  assert.equal(masked, "Hi, I'm [REDACTED_PRIVATE_PERSON]");
 });
