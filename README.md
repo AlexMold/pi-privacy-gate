@@ -44,6 +44,19 @@ Supported platforms: macOS (arm64/x64), Linux (x64/arm64). Windows is out of sco
 
 - `localModel` — which registered Pi model handles private analysis. Configure the
   provider in Pi first (`/login ollama`, `/login llama.cpp`), then point here.
+- `detector` — how PII scanning is performed. Three modes:
+  - `"managed"` (default): pi-privacy installs and supervises its own llama-server with
+    the PII-Tracer weights (`/privacy-setup`).
+  - `{ "mode": "http", "url": "http://127.0.0.1:8002/v1/scoring" }` — any HTTP endpoint that
+    accepts `{"text": "..."}` and returns `{"spans": [{"start", "end", "label", "score"}]}`
+    (char offsets). For example the PII-Tracer vLLM scoring adapter or your own service.
+  - `{ "mode": "command", "command": "python3 ~/my_detector.py" }` — an arbitrary command:
+    the text arrives on stdin, stdout must carry the same JSON shape. Works for a
+    Python/transformers wrapper, an MLX script, or anything else you already run.
+
+  Span output is validated (bounds clamped, labels checked) before it reaches the gate.
+  With `http`/`command`, pi-privacy never starts or manages a detector process — that
+  backend is entirely yours.
 - `cloudModel` — fallback routing target for a fresh session with no prior responses. `/privacy on` keeps your current model (e.g. deepseek-v4-pro) as the orchestrator; private content goes to the local model inside `privacy_analyze`.
 - `withholdCategories` — a tool result containing any span of these categories is withheld
   entirely: content is stored locally and the model sees only a placeholder.

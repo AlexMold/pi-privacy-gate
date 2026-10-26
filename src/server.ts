@@ -138,7 +138,30 @@ export async function startServer(state: State): Promise<number> {
     "-c", "4096", "-b", "4096", "-ub", "4096",
   ];
   child = spawn(state.binaryPath, args, { stdio: ["ignore", "pipe", "pipe"] });
-  child.stderr?.on("data", (d: Buffer) => console.error(`[llama-server] ${d.toString().trim()}`));
+  // llama-server is chatty on stderr (one line per slot task per scan). Surface only
+  // warnings/errors unless PI_PRIVACY_DEBUG=1.
+  // llama-server is chatty on stderr (one line per slot task per scan, plus benign
+  // startup warnings). Default: errors only; PI_PRIVACY_DEBUG=1 shows everything.
+  const debug = process.env.PI_PRIVACY_DEBUG === "1";
+  const recent: string[] = [];
+  const forward = (d: Buffer) => {
+    const text = d.toString().trim();
+    if (!text) return;
+    recent.push(text);
+    if (recent.length > 20) recent.shift();
+    if (!debug && !/\berror\b|\bfatal\b|not loaded/i.test(text)) return;
+    console.error(`[llama-server] ${text}`);
+  };
+  child.stderr?.on("data", forward);
+  child.stdout?.on("data", forward);
+  // A crash during startup (missing dylib, bad binary) would otherwise be silent:
+  // the health wait only reports a timeout, so dump the tail on a non-zero exit.
+  child.on("exit", (code) => {
+    if (code !== 0 && child) {
+      console.error(`[llama-server] exited with code ${code}:`);
+      for (const l of recent) console.error(`[llama-server] ${l}`);
+    }
+  });
   // wait for health, max 30s
   for (let i = 0; i < 60; i++) {
     if (await isHealthy(state.port)) return state.port;

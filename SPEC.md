@@ -37,7 +37,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | 1 | MVP scope | Privacy router + redaction (virtual model + hooks), no confirm dialogs |
 | 2 | PII engine | PII Tracer GGUF (596M, MIT, 9 categories + sensitivity head) via llama-server |
 | 3 | Two-tier mechanism | `privacy_analyze` tool: cloud orchestrates, local model computes on private content; only the (re-scanned) answer enters context |
-| 4 | Detector runtime | Self-managed: `/privacy-setup` downloads weights + llama-server binary, supervises process. Reuses M0 artifacts when present (idempotent) |
+| 4 | Detector runtime | Self-managed by default: `/privacy-setup` downloads weights + llama-server, supervises the process. External backends via config: `detector.mode = "http"` (any endpoint answering `{text} -> {spans}`) or `"command"` (stdin -> JSON on stdout). Managed reuses M0 artifacts when present (idempotent). Span output is validated at the boundary (bounds clamped, labels checked) |
 | 5 | Fail-closed | Retry then block (D-1); invalid local model blocks (D-2) |
 | 6 | Local model selection | Config file `privacy-router.json`, no wizard |
 | 7 | Withhold trigger | Config `withholdCategories` (A-1); other categories redacted (A-2) |

@@ -13,8 +13,9 @@ import { put } from "../src/store.ts";
 import { analyzeWithheld } from "../src/analyze.ts";
 import { maskText } from "../src/viterbi.ts";
 import { loadConfig, saveConfig, isLocalModelValid, configFile, type PrivacyConfig } from "../src/config.ts";
+import { HttpScanner, CommandScanner, type SpanScanner } from "../src/scanners.ts";
 
-let detector: PiiDetector | null = null;
+let detector: SpanScanner | null = null;
 let gate: PrivacyGate | null = null;
 let config: PrivacyConfig | null = null;
 /** per-session: physical model in use right before /privacy on — route fallback and /privacy off target */
@@ -22,7 +23,6 @@ const preOnModels = new Map<string, { provider: string; id: string }>();
 
 function initGate(): PrivacyGate | null {
   const state = loadState();
-  if (!state) return null;
   if (!config) {
     try {
       config = loadConfig();
@@ -31,9 +31,11 @@ function initGate(): PrivacyGate | null {
       return null;
     }
   }
+  const mode = config.detector.mode;
+  if (mode === "managed" && !state) return null; // not installed yet
   if (!gate) {
     try {
-      detector = new PiiDetector(state.weightsDir, `http://127.0.0.1:${state.port}`);
+      detector = buildScanner(config, state);
       gate = new PrivacyGate((text) => detector!.scan(text), {
         withholdCategories: config.withholdCategories,
         redactCategories: config.redactCategories,
@@ -46,6 +48,15 @@ function initGate(): PrivacyGate | null {
     }
   }
   return gate;
+}
+
+/** Detector backend selection (SPEC design tree #4): managed / http / command. */
+function buildScanner(cfg: PrivacyConfig, state: ReturnType<typeof loadState>): SpanScanner {
+  const d = cfg.detector;
+  if (d.mode === "http") return new HttpScanner(d.url, d.timeoutMs);
+  if (d.mode === "command") return new CommandScanner(d.command, d.timeoutMs);
+  if (!state) throw new Error("detector.mode is \"managed\" but the detector is not installed. Run /privacy-setup");
+  return new PiiDetector(state.weightsDir, `http://127.0.0.1:${state.port}`);
 }
 
 /** A-3: session- or file-level allowlist bypass. */
@@ -149,6 +160,11 @@ export default function (pi: ExtensionAPI) {
     description: "Install and start the pi-privacy PII detector (weights + llama-server)",
     handler: async (_args, ctx) => {
       try {
+        const cfg = loadConfig();
+        if (cfg.detector.mode !== "managed") {
+          ctx.ui.notify(`pi-privacy: detector.mode is "${cfg.detector.mode}" — the managed llama-server is not used. Nothing to set up.`, "info");
+          return;
+        }
         const state = await setup();
         ctx.ui.notify(`pi-privacy: detector running on port ${state.port} (llama.cpp ${state.version})`, "info");
       } catch (e) {
@@ -160,18 +176,28 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("privacy-status", {
     description: "Show pi-privacy detector and config state",
     handler: async (_args, ctx) => {
-      const state = loadState();
-      if (!state) { ctx.ui.notify("pi-privacy: not installed. Run /privacy-setup", "warning"); return; }
-      const healthy = await isHealthy(state.port);
-      ctx.ui.notify(`pi-privacy: ${healthy ? "running" : "DOWN"} (port ${state.port}, weights ${state.weightsDir})`, healthy ? "info" : "warning");
+      let cfg: PrivacyConfig;
       try {
-        const cfg = loadConfig();
-        if (!isLocalModelValid(cfg)) {
-          ctx.ui.notify(`pi-privacy: ${configFile()} has no valid localModel — privacy_analyze is blocked (D-2)`, "warning");
-        }
+        cfg = loadConfig();
       } catch (e) {
         ctx.ui.notify(`pi-privacy: ${(e as Error).message}`, "error");
+        return;
       }
+      const d = cfg.detector;
+      if (d.mode === "managed") {
+        const state = loadState();
+        if (!state) { ctx.ui.notify("pi-privacy: not installed. Run /privacy-setup", "warning"); return; }
+        const healthy = await isHealthy(state.port);
+        ctx.ui.notify(`pi-privacy: detector ${healthy ? "running" : "DOWN"} (managed llama-server, port ${state.port})`, healthy ? "info" : "warning");
+      } else if (d.mode === "http") {
+        ctx.ui.notify(`pi-privacy: detector http → ${d.url}`, "info");
+      } else {
+        ctx.ui.notify(`pi-privacy: detector command → ${d.command}`, "info");
+      }
+      if (!isLocalModelValid(cfg)) {
+        ctx.ui.notify(`pi-privacy: ${configFile()} has no valid localModel — privacy_analyze is blocked (D-2)`, "warning");
+      }
+      ctx.ui.notify(`pi-privacy: gate ${gateActive(ctx) ? "ON" : "OFF"} in this session`, "info");
     },
   });
 
@@ -197,14 +223,20 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", async () => {
-    const ok = await ensureRunning();
-    if (ok) initGate();
+    let cfg: PrivacyConfig | null = null;
     try {
-      const cfg = loadConfig();
-      if (!isLocalModelValid(cfg)) {
-        console.error(`pi-privacy: ${configFile()} has no valid localModel — privacy_analyze blocked until fixed (D-2)`);
-      }
+      cfg = loadConfig();
     } catch { /* config errors surface via commands */ }
+    // Only the managed backend owns a process; http/command backends are the user's.
+    if (!cfg || cfg.detector.mode === "managed") {
+      const ok = await ensureRunning();
+      if (ok) initGate();
+    } else {
+      initGate();
+    }
+    if (cfg && !isLocalModelValid(cfg)) {
+      console.error(`pi-privacy: ${configFile()} has no valid localModel — privacy_analyze blocked until fixed (D-2)`);
+    }
   });
 
   pi.on("session_shutdown", () => {

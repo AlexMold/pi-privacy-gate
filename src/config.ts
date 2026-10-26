@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { DEFAULT_WITHHOLD_CATEGORIES, DEFAULT_REDACT_CATEGORIES } from "./gate.ts";
+import type { DetectorConfig } from "./scanners.ts";
 
 /** resolved lazily so tests can set PI_PRIVACY_DIR before first use */
 export function dataDir(): string {
@@ -20,6 +21,8 @@ export function configFile(): string {
 export const CONFIG_FILE_LABEL = "privacy-router.json";
 
 export interface PrivacyConfig {
+  /** which detector backend answers the scans (managed llama-server by default) */
+  detector: DetectorConfig;
   localModel: { provider: string; model: string };
   /** cloud model privacy/auto routes to; empty = routing disabled with instructive error */
   cloudModel: { provider: string; model: string };
@@ -36,6 +39,7 @@ export interface PrivacyConfig {
 
 export function defaultConfig(): PrivacyConfig {
   return {
+    detector: { mode: "managed" },
     localModel: {
       provider: process.env.PI_PRIVACY_LOCAL_PROVIDER ?? "ollama",
       model: process.env.PI_PRIVACY_LOCAL_MODEL ?? "qwen2.5:3b",
@@ -57,6 +61,7 @@ export function loadConfig(): PrivacyConfig {
     const raw = JSON.parse(readFileSync(file, "utf8")) as Partial<PrivacyConfig>;
     const d = defaultConfig();
     return {
+      detector: (raw.detector as DetectorConfig) ?? d.detector,
       localModel: { ...d.localModel, ...(raw.localModel ?? {}) },
       cloudModel: { ...d.cloudModel, ...(raw.cloudModel ?? {}) },
       withholdCategories: raw.withholdCategories ?? d.withholdCategories,
