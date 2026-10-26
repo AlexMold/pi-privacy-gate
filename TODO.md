@@ -31,15 +31,15 @@
 - [x] Unit-тесты: withhold, redact, плейсхолдер, освобождение инжектированного контекста
 
 ### 4. M3 — privacy_analyze
-- [ ] Инструмент `privacy_analyze(question, fileRef)`: чтение side-store, вызов локальной модели из конфига (provider/model через ctx.modelRegistry), возврат ответа
-- [ ] Ответ инструмента проходит через детектор до попадания в контекст (redact спанов)
-- [ ] Unit-тесты: вызов на каноничном чувствительном файле, redaction ответа с PII
+- [x] Инструмент `privacy_analyze(question, fileRef)`: чтение side-store, вызов локальной модели из конфига (provider/model через ctx.modelRegistry), возврат ответа
+- [x] Ответ инструмента проходит через детектор до попадания в контекст (redact спанов)
+- [x] Unit-тесты: вызов на каноничном чувствительном файле, redaction ответа с PII
 
 ### 5. M4 — Fail-closed, конфиг, allowlist
-- [ ] privacy-router.json: localModel{provider, model}, withholdCategories, redactCategories, retryTimeout, пороги калибровки (span confidence, sensitivity), allowlist
-- [ ] Fail-closed (D-1, D-2): retry N сек → блок с ошибкой; невалидная/отсутствующая localModel → блок всех чувствительных запросов с инструктивной ошибкой
-- [ ] Команда `/privacy-allow file|session` → allowlist (работает в TUI и headless)
-- [ ] Unit-тесты: retry-then-block, невалидный конфиг, allowlist-bypass
+- [x] privacy-router.json: localModel{provider, model}, withholdCategories, redactCategories, retryTimeout, пороги калибровки (span confidence, sensitivity), allowlist
+- [x] Fail-closed (D-1, D-2): retry N сек → блок с ошибкой; невалидная/отсутствующая localModel → блок всех чувствительных запросов с инструктивной ошибкой
+- [x] Команда `/privacy-allow file|session` → allowlist (работает в TUI и headless)
+- [x] Unit-тесты: retry-then-block, невалидный конфиг, allowlist-bypass
 
 ### 6. M5 — Виртуальная модель и пакет
 - [x] `registerVirtualModel` `privacy/auto`: гейт активен только в ней, дефолт-роутинг в облачную модель
