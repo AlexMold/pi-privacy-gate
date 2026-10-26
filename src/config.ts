@@ -51,7 +51,7 @@ export function loadConfig(): PrivacyConfig {
   const file = configFile();
   if (!existsSync(file)) return defaultConfig();
   try {
-    const raw = JSON.parse(readFileSync(CONFIG_FILE, "utf8")) as Partial<PrivacyConfig>;
+    const raw = JSON.parse(readFileSync(file, "utf8")) as Partial<PrivacyConfig>;
     const d = defaultConfig();
     return {
       localModel: { ...d.localModel, ...(raw.localModel ?? {}) },
