@@ -44,7 +44,7 @@ Supported platforms: macOS (arm64/x64), Linux (x64/arm64). Windows is out of sco
 
 - `localModel` — which registered Pi model handles private analysis. Configure the
   provider in Pi first (`/login ollama`, `/login llama.cpp`), then point here.
-- `cloudModel` — the model `pi-privacy/auto` routes to. Required for privacy mode.
+- `cloudModel` — fallback routing target for a fresh session with no prior responses. `/privacy on` keeps your current model (e.g. deepseek-v4-pro) as the orchestrator; private content goes to the local model inside `privacy_analyze`.
 - `withholdCategories` — a tool result containing any span of these categories is withheld
   entirely: content is stored locally and the model sees only a placeholder.
 - `redactCategories` — all other PII spans are replaced with `[REDACTED_category]`.

@@ -54,7 +54,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 ```json
 {
   "localModel": { "provider": "ollama", "model": "qwen2.5:3b" },
-  "cloudModel": { "provider": "anthropic", "model": "claude-sonnet-4-5" },
+  "cloudModel": { "provider": "anthropic", "model": "claude-sonnet-4-5" } // fallback only: route follows the session's current model,
   "withholdCategories": ["account_number", "secret", "private_address"],
   "redactCategories": ["private_person", "private_email", "private_phone", "private_url", "private_date", "other_pii"],
   "retryTimeoutSec": 5,

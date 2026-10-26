@@ -17,6 +17,8 @@ import { loadConfig, saveConfig, isLocalModelValid, configFile, type PrivacyConf
 let detector: PiiDetector | null = null;
 let gate: PrivacyGate | null = null;
 let config: PrivacyConfig | null = null;
+/** physical model in use right before /privacy on — /privacy off returns to it */
+let preOnModel: { provider: string; id: string } | null = null;
 
 function initGate(): PrivacyGate | null {
   const state = loadState();
@@ -67,10 +69,17 @@ export default function (pi: ExtensionAPI) {
     name: "Privacy Auto",
     thinkingLevels: ["off", "low", "medium", "high"],
     route(request, ctx) {
+      // Keep the user's current model as the orchestrator (e.g. deepseek-v4-pro):
+      // /privacy on just adds the gate around whatever model the session already uses.
+      const prev = request.previous;
+      if (prev && prev.model.provider !== "pi-privacy") {
+        return { model: prev.model, thinkingLevel: prev.thinkingLevel ?? request.thinkingLevel };
+      }
+      // Fresh session with no prior physical model: fall back to configured cloudModel.
       const cfg = loadConfig();
       const { provider, model: id } = cfg.cloudModel;
       if (!provider || !id) {
-        throw new Error(`pi-privacy: cloudModel not set in ${configFile()}. Add {"cloudModel": {"provider": "<provider>", "model": "<model>"}}`);
+        throw new Error(`pi-privacy: no previous model in this session and cloudModel not set in ${configFile()}. Add {"cloudModel": {"provider": "<provider>", "model": "<model>"}}`);
       }
       const model = ctx.modelRegistry.find(provider, id);
       if (!model) throw new Error(`pi-privacy: cloud model ${provider}/${id} not in the catalog`);
@@ -85,19 +94,25 @@ export default function (pi: ExtensionAPI) {
       const virtual = ctx.modelRegistry.find("pi-privacy", "auto");
       if (!virtual) { ctx.ui.notify("pi-privacy: virtual model pi-privacy/auto not registered", "error"); return; }
       if (sub === "on") {
-        const cfg = loadConfig();
-        if (!cfg.cloudModel.provider || !cfg.cloudModel.model) {
-          ctx.ui.notify(`pi-privacy: cloudModel not set in ${configFile()}. Privacy mode needs a cloud target.`, "error");
-          return;
+        // remember the physical model so /privacy off returns exactly to it
+        const current = ctx.model;
+        if (current && current.provider !== "pi-privacy") {
+          preOnModel = { provider: current.provider, id: current.id };
         }
         await pi.setModel(virtual);
-        ctx.ui.notify(`pi-privacy: gate ON — routing to ${cfg.cloudModel.provider}/${cfg.cloudModel.model}`, "info");
+        ctx.ui.notify("pi-privacy: gate ON — continuing on your current model; private content goes local", "info");
       } else if (sub === "off") {
-        const cfg = loadConfig();
-        const cloud = cfg.cloudModel.provider && cfg.cloudModel.model ? ctx.modelRegistry.find(cfg.cloudModel.provider, cfg.cloudModel.model) : undefined;
-        if (!cloud) { ctx.ui.notify(`pi-privacy: cannot switch off — cloudModel not set in ${configFile()}`, "error"); return; }
-        await pi.setModel(cloud);
-        ctx.ui.notify(`pi-privacy: gate OFF — direct ${cfg.cloudModel.provider}/${cfg.cloudModel.model}`, "info");
+        let target = preOnModel ? ctx.modelRegistry.find(preOnModel.provider, preOnModel.id) : undefined;
+        if (!target) {
+          const cfg = loadConfig();
+          target = cfg.cloudModel.provider && cfg.cloudModel.model
+            ? ctx.modelRegistry.find(cfg.cloudModel.provider, cfg.cloudModel.model)
+            : undefined;
+        }
+        if (!target) { ctx.ui.notify("pi-privacy: cannot switch off — no model to return to", "error"); return; }
+        await pi.setModel(target);
+        preOnModel = null;
+        ctx.ui.notify(`pi-privacy: gate OFF — back on ${target.provider}/${target.id}`, "info");
       } else if (sub === "status" || sub === "") {
         const active = gateActive(ctx);
         ctx.ui.notify(`pi-privacy: gate ${active ? "ON (pi-privacy/auto)" : "OFF"}`, "info");
@@ -159,6 +174,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", async () => {
+    preOnModel = null;
     const ok = await ensureRunning();
     if (ok) initGate();
     try {
