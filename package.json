@@ -1,0 +1,19 @@
+{
+  "name": "pi-privacy",
+  "version": "0.1.0",
+  "description": "Privacy gate for Pi: local PII detection, span redaction, file withholding, and local-model analysis. Cloud orchestrates, private content stays local.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test 'test/*.test.ts'"
+  },
+  "keywords": ["pi-package", "privacy", "pii", "llm", "redaction"],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions/index.ts"]
+  }
+}

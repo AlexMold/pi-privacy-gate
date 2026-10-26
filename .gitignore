@@ -1,0 +1,9 @@
+node_modules/
+*.gguf
+*.safetensors
+weights/
+models/
+bin/
+*.log
+.DS_Store
+dist/
