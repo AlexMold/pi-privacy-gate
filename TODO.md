@@ -1,62 +1,77 @@
 # TODO
 
 ## Goal
-Локально работающий v1 пакета **pi-privacy**: PII-гейт в Pi (детектор PII Tracer GGUF через llama-server, withhold/redact tool results, `privacy_analyze` на локальной модели, fail-closed), верифицированный canary-сьютом, PII-TRACE-сабсетом и dogfooding-прогоном.
+A locally working v1 of **pi-privacy-gate**: a PII gate for Pi (PII Tracer GGUF detector
+via llama-server, tool-result withhold/redact, `privacy_analyze` on the local model,
+fail-closed), verified by a canary suite, the PII-TRACE benchmark, and dogfooding.
 
 ## Tasks
 
 ### 0. Repo & skeleton
-- [x] `git init` в ~/workplace/pi-privacy-router, `.gitignore` (node_modules, веса моделей, артефакты)
-- [x] SPEC.md: Claim Register по A.6.B — ID норм гейта (L-1 категории PII, A-1 withhold-предикат, A-2 allowlist-предикат, D-1 fail-closed, D-2 блок без валидной локальной модели) + зафиксированные решения design tree
-- [x] package.json: name `pi-privacy`, license MIT, peerDependencies на host-пакеты Pi, `pi`-манифест (extensions)
+- [x] `git init`, `.gitignore` (node_modules, model weights, artifacts)
+- [x] SPEC.md: Claim Register per A.6.B — gate norm IDs (L-1 PII categories, A-1 withhold
+      predicate, A-3 allowlist predicate, D-1 fail-closed, D-2 block without a valid local
+      model) + settled design-tree decisions
+- [x] package.json: name `pi-privacy-gate`, license MIT, peerDependencies on Pi host
+      packages, `pi` manifest (extensions)
 
-### 1. M0 — Spike детектора (SYSE.24 bounded probe, go/no-go перед M1)
-- [x] Скачать perplexity-ai/PII-Tracer-GGUF (~1.2GB), проверить состав: backbone f16, fp32 heads, decoding client
-- [x] Определить язык decoding client и его самостоятельность → выбор: TS-порт Viterbi или микро-sidecar (в spike-отчёт)
-- [x] Запустить llama-server с моделью, прогнать канонический пример из HF README, сверить спаны (private_person/email/phone)
-- [x] Замерить латентность на чанке 4096 токенов на Mac (CPU и GPU)
-- [x] Проверить self-managed путь: скачивание бинарника llama-server (macOS + Linux), spawn, health-check
-- [x] Spike-отчёт: сравнение GGUF+llama-server vs Python-sidecar по 8 вопросам SYSE.24:4.3 + go/no-go. M1 стартует только после go
+### 1. M0 — Detector spike (SYSE.24 bounded probe, go/no-go before M1)
+- [x] Download perplexity-ai/PII-Tracer-GGUF (~1.2GB), inspect contents: f16 backbone, fp32 heads, decoding client
+- [x] Determine the decoding client's language and self-containment → TS Viterbi port vs micro-sidecar (in the spike report)
+- [x] Start llama-server with the model, run the HF README canonical example, verify spans (private_person/email/phone)
+- [x] Measure latency on a Mac for large chunks
+- [x] Verify the self-managed path: llama-server binary download (macOS + Linux), spawn, health-check
+- [x] Spike report: GGUF+llama-server vs Python-sidecar across the 8 SYSE.24:4.3 questions + go/no-go. M1 only starts after go
 
-### 2. M1 — Детектор-сервис
-- [x] Команда `/privacy-setup`: переиспользовать веса и llama-server из M0, если они уже скачаны/работают; иначе скачать. Идемпотентно (повторный запуск ничего не перекачивает). Развернуть, health-check, сохранить конфиг
-- [x] Супервизор llama-server: запуск при session_start, рестарт при падении, остановка при session_shutdown
-- [x] Scan API в TS: text → spans (9 категорий) + sensitivity score, чанкинг по 4096 токенов, Viterbi-декодер (порт или вызов sidecar — по решению M0)
-- [x] Unit-тесты scan API на канонических примерах (email, phone, account_number, private_person)
+### 2. M1 — Detector service
+- [x] `/privacy-setup` command: reuse weights and llama-server from M0 when already present; idempotent; health-check; persist state
+- [x] llama-server supervisor: start on session_start, stop on session_shutdown
+- [x] Scan API in TS: text → spans (9 categories) + sensitivity score, token-window chunking, Viterbi decoder (per the M0 decision: full TS port)
+- [x] Unit tests on canonical examples (email, phone, account_number, private_person)
 
-### 3. M2 — Механика гейта
-- [x] Хук `tool_result`: сканировать все tool results; спаны withhold-категорий (A-1) → контент в side-store, в контекст плейсхолдер; остальные спаны → `[REDACTED_category]`
-- [x] Хук `before_provider_request`: сканировать payload, redact спанов в user-сообщениях и остаточном контенте; инжектированные секции (system/memory/скиллы) не трогать
-- [x] Уведомления через ui.notify (TUI/RPC-safe, без диалогов): «N spans redacted», «file withheld»
-- [x] Unit-тесты: withhold, redact, плейсхолдер, освобождение инжектированного контекста
+### 3. M2 — Gate mechanics
+- [x] `tool_result` hook: scan all tool results; withhold-category spans (A-1) → content to side-store, placeholder to context; other spans → `[REDACTED_category]`
+- [x] Provider-agnostic outbound redaction via the `context` hook; injected sections (system/memory/skills) exempt (D-4)
+- [x] Notifications via ui.notify (TUI/RPC-safe, no dialogs)
+- [x] Unit tests: withhold, redact, placeholder, injected-context exemption
 
 ### 4. M3 — privacy_analyze
-- [x] Инструмент `privacy_analyze(question, fileRef)`: чтение side-store, вызов локальной модели из конфига (provider/model через ctx.modelRegistry), возврат ответа
-- [x] Ответ инструмента проходит через детектор до попадания в контекст (redact спанов)
-- [x] Unit-тесты: вызов на каноничном чувствительном файле, redaction ответа с PII
+- [x] `privacy_analyze(question, fileRef)` tool: side-store lookup, local model from config (via ctx.modelRegistry), answer returned
+- [x] Tool answer passes through the detector before entering context (D-3)
+- [x] Unit tests: canonical sensitive file, answer redaction
 
-### 5. M4 — Fail-closed, конфиг, allowlist
-- [x] privacy-router.json: localModel{provider, model}, withholdCategories, redactCategories, retryTimeout, пороги калибровки (span confidence, sensitivity), allowlist
-- [x] Fail-closed (D-1, D-2): retry N сек → блок с ошибкой; невалидная/отсутствующая localModel → блок всех чувствительных запросов с инструктивной ошибкой
-- [x] Команда `/privacy-allow file|session` → allowlist (работает в TUI и headless)
-- [x] Unit-тесты: retry-then-block, невалидный конфиг, allowlist-bypass
+### 5. M4 — Fail-closed, config, allowlist
+- [x] privacy-router.json: localModel, cloudModel, withhold/redactCategories, retryTimeout, calibration thresholds, allowlist, detector backend
+- [x] Fail-closed (D-1, D-2): retry N sec → block with error; invalid localModel → all sensitive requests blocked with an instructive error
+- [x] `/privacy-allow file|session` → allowlist (works in TUI and headless)
+- [x] Unit tests: retry-then-block, invalid config, allowlist bypass
 
-### 6. M5 — Виртуальная модель и пакет
-- [x] `registerVirtualModel` `privacy/auto`: гейт активен только в ней, дефолт-роутинг в облачную модель
-- [x] Команда `/privacy on|off|status`: включает/выключает гейт в текущей сессии (переключение модели на `privacy/auto` и обратно) и показывает состояние гейта
-- [x] Сборка пакета (pi-манифест, peerDependencies), локальная установка `pi install ./` — проверка загрузки
-- [x] README (EN): установка, /privacy-setup, конфиг, ограничения — инжектированный контекст освобождён, защищается egress в облако, не локальный диск
+### 6. M5 — Virtual model and packaging
+- [x] `registerVirtualModel` `privacy/auto`: gate active only there; routes to the session's current model (cloudModel is a fresh-session fallback)
+- [x] `/privacy on|off|status`: session-scoped gate toggle + state
+- [x] Package build (pi manifest, peerDependencies), local load verified via `pi -e ./`
+- [x] README (EN): install, /privacy-setup, config, limitations — injected context exempt, egress protection only, not local disk
 
-### 7. M6 — Верификация и dogfooding
-- [x] Canary suite: синтетические файлы с подсаженным PII всех 9 категорий (выписки, договор, медзапись, штраф) + бенигн-корпус для замера FP-rate
-- [x] PII-TRACE сабсет: замер F1 детектора, пороги зафиксировать в отчёте
-- [x] Dogfooding: включить `privacy/auto` на своих сессиях, проверить логи провайдеров на egress, журнал находок
-- [x] B.3 assurance card в SPEC.md: target claim, assurance use, disposition, limitations, reopen conditions (4: egress-инцидент, апдейт PII Tracer, изменение семантики хуков Pi, превышение бюджета латентности)
-- [x] Линт привязки: каждый тест ссылается на Claim Register ID (G/A/D-нормы)
+### 7. M6 — Verification and dogfooding
+- [x] Canary suite: synthetic files with planted PII + benign corpus for FP-rate
+- [x] PII-TRACE full release: detector F1 measured, thresholds recorded
+- [x] Dogfooding: privacy/auto on real sessions, egress checked, findings journal
+- [x] B.3 assurance card in SPEC.md: target claim, use, disposition, limitations, reopen conditions
+- [x] Claim lint: every gate test cites a Claim Register ID
+
+## Post-v1 (publish track)
+- [x] Rename to `pi-privacy-gate` (npm `pi-privacy` taken by privateer-agent)
+- [x] files whitelist, LICENSE (personal MIT), repository metadata
+- [x] English-only repo content (TODO, docs)
+- [x] Egress-proof: payload-level capture test (E-4)
+- [x] ADR-0001 package name
+- [ ] `npm publish` + push (waiting for explicit go)
 
 ## Notes
-- **Язык:** документация EN (комьюнити), TODO/SPEC можно RU.
-- **Платформы:** macOS (твоя машина) + Linux в логике скачивания; Windows вне v1.
-- **Решения design tree (из гриллинга):** two-tier через privacy_analyze; PII Tracer GGUF; self-managed /privacy-setup; fail-closed retry→block; конфиг-файл без wizard; withhold по конфиг-категориям; сканирование всех tool results; /privacy-allow как escape hatch; верификация canary + PII-TRACE + dogfooding + unit.
-- **Открытые риски:** язык decoding client (решает M0); латентность детектора (меряет M0); качество локальной модели юзера влияет на privacy_analyze — в README минимальная рекомендация.
-- **FPF-дисциплина:** design tree = описание, не система; go по M0 ≠ release (release-решение — отдельно, после M6, по SYSE.14).
+- **Platforms:** macOS + Linux download paths; Windows out of v1.
+- **Design-tree decisions:** two-tier via privacy_analyze; PII Tracer GGUF; self-managed
+  /privacy-setup with pluggable http/command detector backends; fail-closed retry→block;
+  config file, no wizard; withhold by config categories; scan all tool results;
+  /privacy-allow as the escape hatch; verification = canary + PII-TRACE + dogfooding + unit.
+- **FPF discipline:** the design tree is a description, not the system; M0 go ≠ release
+  (the release decision is separate, SYSE.14).

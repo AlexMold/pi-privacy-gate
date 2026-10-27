@@ -1,16 +1,25 @@
 {
-  "name": "pi-privacy",
+  "name": "pi-privacy-gate",
   "version": "0.1.0",
   "description": "Privacy gate for Pi: local PII detection, span redaction, file withholding, and local-model analysis. Cloud orchestrates, private content stays local.",
   "license": "MIT",
   "type": "module",
-  "scripts": {
-    "test": "node --test 'test/*.test.ts'",
-    "lint:claims": "node scripts/lint-claims.ts",
-    "bench:fetch": "node scripts/fetch-piitrace.ts",
-    "bench:piitrace": "node scripts/benchmark.ts"
+  "author": "Alexandr Gribcov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexMold/pi-privacy-gate.git"
   },
+  "homepage": "https://github.com/AlexMold/pi-privacy-gate#readme",
+  "bugs": "https://github.com/AlexMold/pi-privacy-gate/issues",
   "keywords": ["pi-package", "privacy", "pii", "llm", "redaction"],
+  "files": [
+    "extensions/",
+    "src/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "SPEC.md"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
@@ -18,5 +27,12 @@
   },
   "pi": {
     "extensions": ["./extensions/index.ts"]
+  },
+  "scripts": {
+    "test": "node --test 'test/*.test.ts'",
+    "lint:claims": "node scripts/lint-claims.ts",
+    "bench:fetch": "node scripts/fetch-piitrace.ts",
+    "bench:piitrace": "node scripts/benchmark.ts",
+    "egress:proof": "node scripts/egress-proof.ts"
   }
 }

@@ -1,4 +1,4 @@
-# pi-privacy
+# pi-privacy-gate
 
 Privacy gate for [Pi](https://pi.dev) — the coding agent. Local PII detection, span
 redaction, file-level withholding, and local-model analysis. Cloud models keep
@@ -12,7 +12,7 @@ is a pure-TypeScript port verified byte-exact against the reference client.
 ## Install
 
 ```bash
-pi install npm:pi-privacy        # or: pi install ./pi-privacy for a local checkout
+pi install npm:pi-privacy-gate        # or: pi install ./pi-privacy-gate for a local checkout
 ```
 
 Then run the setup. It downloads the detector weights (~1.2 GB) and a platform
@@ -110,7 +110,7 @@ While the gate is active:
 
 The detector runs in 1024-token windows (~0.35 ms/token on Apple Silicon + ~70 ms per
 request). Large tool results add noticeable scan time; this is the cost of scanning
-everything. See `spike/REPORT.md` for measurements.
+everything. See [docs/detector-spike-report.md](docs/detector-spike-report.md) for measurements.
 
 ## Development
 

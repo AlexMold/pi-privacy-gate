@@ -29,6 +29,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | E-1 | E | Canary suite results: 4/4 synthetic files (bank CSV, ISP agreement, medical note, parking ticket) withheld on A-1 categories; benign corpus (4 files) — 0 withholds, 1 false-positive span (2026-10-26) |
 | E-2 | E | PII-TRACE (full 500-conversation release, 2653 gold spans): micro exact typed-span F1 72.7% (P 70.8 / R 74.7), untyped F1 80.8%. Per-label: account_number recall 98% (220/224) with 373 FP; secret recall 18.6% (39/210); other_pii recall 1.4% (3/211) |
 | E-3 | E | Dogfooding (2026-10-26, 3 scripted sessions with privacy/auto on google/gemini-3.7-flash): run 1 — withhold held, privacy_analyze failed on stale ollama catalog (fixed: refresh fallback); run 2 — found mask self-trigger recursion (fixed: SPEC A-2 format); run 3 — full E2E green, cloud saw only [REDACTED_*]. Journal: bench/dogfood-journal.md |
+| E-4 | E | Egress proof (2026-10-27): real pi session, gate ON via session-time model selection, 4 canary files read; the exact serialized outbound provider payload captured at `before_provider_request`; 15 planted PII markers (all withhold + redact categories) — none present in the payload. Target model 404s on localhost, so nothing left the machine. Method: `npm run egress:proof` (scripts/egress-proof.ts). Limitation: first outbound request only (the local target 404s, so multi-turn payloads were not exercised) |
 
 ## Design tree (settled decisions)
 
@@ -74,8 +75,8 @@ declared, recalibration documented after M6 measurements.
 AssuranceResult:
   targetClaimRef:  "In privacy/auto mode, no PII span of withhold categories from tool
                     results or user messages egresses to the cloud provider"
-  assuranceUse:    v1 local release + dogfooding decision
-  basisRefs:       E-1 (canary), E-2 (PII-TRACE), E-3 (dogfooding), unit tests (39)
+  assuranceUse:    public 0.x release (npm pi-privacy-gate) + continued dogfooding
+  basisRefs:       E-1 (canary), E-2 (PII-TRACE), E-3 (dogfooding), E-4 (egress proof), unit tests (49)
   disposition:     supported-for-use (local v1), with limitations below
   limitationsAndNotCarried:
     - secret recall 18.6% on PII-TRACE synthetic secrets (real API keys detected well in
