@@ -4,9 +4,9 @@
 reads your private files, blackens every span, and only the blackened copy ever reaches the
 cloud model.
 
-[![demo](docs/media/poster.jpg)](docs/media/demo.mp4)
+[![demo](https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/poster.jpg)](https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/demo.mp4)
 
-<sub>13-second demo — [watch the MP4](docs/media/demo.mp4) or the [GIF](docs/media/demo.gif).</sub>
+<sub>13-second demo — [watch the MP4](https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/demo.mp4) or the [GIF](https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/demo.gif).</sub>
 
 ```
 pi install npm:pi-privacy-gate
@@ -121,7 +121,7 @@ While the gate is active:
 
 The detector runs in 1024-token windows (~0.35 ms/token on Apple Silicon + ~70 ms per
 request). Large tool results add noticeable scan time; this is the cost of scanning
-everything. See [docs/detector-spike-report.md](docs/detector-spike-report.md) for measurements.
+everything. See [docs/detector-spike-report.md](https://github.com/AlexMold/pi-privacy-gate/blob/main/docs/detector-spike-report.md) for measurements.
 
 ## Development
 
