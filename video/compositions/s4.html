@@ -1,0 +1,68 @@
+<template>
+  <style>
+    #s4 {
+      position: absolute;
+      inset: 0;
+      background: var(--paper);
+    }
+    #s4-zero {
+      position: absolute;
+      left: 118px;
+      top: -54px;
+      font-size: 700px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+      color: var(--accent);
+    }
+    #s4-word {
+      position: absolute;
+      left: 628px;
+      top: 462px;
+      font-size: 132px;
+      letter-spacing: -0.02em;
+    }
+    #s4-line {
+      position: absolute;
+      left: 634px;
+      top: 636px;
+      font-family: var(--mono);
+      font-size: 32px;
+      opacity: 0.75;
+    }
+    #s4-rule {
+      position: absolute;
+      left: 120px;
+      top: 726px;
+      width: 1680px;
+      height: 3px;
+      background: var(--ink);
+      transform-origin: left center;
+      opacity: 0.2;
+    }
+  </style>
+
+  <div id="s4" data-composition-id="s4" data-width="1920" data-height="1080">
+    <div id="s4-rule"></div>
+    <div id="s4-zero">0</div>
+    <div id="s4-word">leaked</div>
+    <div id="s4-line">15 planted &nbsp;·&nbsp; 15 blackened &nbsp;·&nbsp; 0 sent</div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const E_IN = "power4.out";
+
+    tl.fromTo("#s4-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.34, ease: "power2.out" }, 0.02);
+    tl.fromTo("#s4-zero", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.42, ease: E_IN }, 0.06);
+    tl.fromTo("#s4-word", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.34, ease: E_IN }, 0.3);
+    tl.fromTo("#s4-line", { opacity: 0 }, { opacity: 0.75, duration: 0.26, ease: E_IN }, 0.7);
+    tl.fromTo(
+      "#s4",
+      { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(6px)", duration: 0.16, ease: "power2.in" },
+      1.84,
+    );
+
+    window.__timelines["s4"] = tl;
+  </script>
+</template>

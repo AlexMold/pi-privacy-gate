@@ -11,7 +11,13 @@
   },
   "homepage": "https://github.com/AlexMold/pi-privacy-gate#readme",
   "bugs": "https://github.com/AlexMold/pi-privacy-gate/issues",
-  "keywords": ["pi-package", "privacy", "pii", "llm", "redaction"],
+  "keywords": [
+    "pi-package",
+    "privacy",
+    "pii",
+    "llm",
+    "redaction"
+  ],
   "files": [
     "extensions/",
     "src/",
@@ -26,7 +32,11 @@
     "typebox": "*"
   },
   "pi": {
-    "extensions": ["./extensions/index.ts"]
+    "extensions": [
+      "./extensions/index.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/poster.jpg",
+    "video": "https://raw.githubusercontent.com/AlexMold/pi-privacy-gate/main/docs/media/demo.mp4"
   },
   "scripts": {
     "test": "node --test 'test/*.test.ts'",

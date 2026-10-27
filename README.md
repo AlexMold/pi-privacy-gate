@@ -1,9 +1,20 @@
 # pi-privacy-gate
 
-Privacy gate for [Pi](https://pi.dev) — the coding agent. Local PII detection, span
-redaction, file-level withholding, and local-model analysis. Cloud models keep
-orchestrating; private content never reaches the cloud provider.
+**15 planted. 0 leaked.** A PII gate for [Pi](https://pi.dev), the coding agent: the machine
+reads your private files, blackens every span, and only the blackened copy ever reaches the
+cloud model.
 
+[![demo](docs/media/poster.jpg)](docs/media/demo.mp4)
+
+<sub>13-second demo — [watch the MP4](docs/media/demo.mp4) or the [GIF](docs/media/demo.gif).</sub>
+
+```
+pi install npm:pi-privacy-gate
+/privacy-setup
+/privacy on
+```
+
+Cloud models keep orchestrating; private content never leaves your machine.
 Inspired by Perplexity's Hybrid Compute. The detector is
 [perplexity-ai/PII-Tracer](https://huggingface.co/perplexity-ai/PII-Tracer) (MIT, 596M)
 running through a self-managed `llama-server`. All decoding — tokenizer, heads, Viterbi —
@@ -12,7 +23,7 @@ is a pure-TypeScript port verified byte-exact against the reference client.
 ## Install
 
 ```bash
-pi install npm:pi-privacy-gate        # or: pi install ./pi-privacy-gate for a local checkout
+pi install npm:pi-privacy-gate    # or: pi install ./pi-privacy-gate for a local checkout
 ```
 
 Then run the setup. It downloads the detector weights (~1.2 GB) and a platform

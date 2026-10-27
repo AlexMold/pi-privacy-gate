@@ -1,0 +1,61 @@
+<template>
+  <style>
+    #s5 {
+      position: absolute;
+      inset: 0;
+      background: var(--paper);
+    }
+    #s5-cmd {
+      position: absolute;
+      left: 0;
+      top: 464px;
+      width: 1920px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 62px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      white-space: pre;
+    }
+    #s5-caret {
+      display: inline-block;
+      width: 26px;
+      height: 58px;
+      background: var(--accent);
+      vertical-align: -6px;
+      margin-left: 8px;
+    }
+    #s5-tag {
+      position: absolute;
+      left: 0;
+      top: 592px;
+      width: 1920px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 24px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      opacity: 0;
+    }
+  </style>
+
+  <div id="s5" data-composition-id="s5" data-width="1920" data-height="1080">
+    <div id="s5-cmd"><span id="s5-typed"></span><span id="s5-caret"></span></div>
+    <div id="s5-tag">local · mac + linux · mit</div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const CMD = "pi install npm:pi-privacy-gate";
+    const typed = document.getElementById("s5-typed");
+
+    // deterministic type-on: one seekable state per character, no interval
+    for (let i = 0; i <= CMD.length; i++) {
+      tl.set(typed, { textContent: CMD.slice(0, i) }, 0.18 + i * 0.022);
+    }
+    tl.fromTo("#s5-caret", { opacity: 0 }, { opacity: 1, duration: 0.1, ease: "none" }, 0.14);
+    tl.fromTo("#s5-tag", { opacity: 0 }, { opacity: 0.6, duration: 0.24, ease: "power4.out" }, 0.9);
+
+    window.__timelines["s5"] = tl;
+  </script>
+</template>

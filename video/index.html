@@ -1,0 +1,185 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[
+    {"id":"color-paper","type":"color","label":"Paper","default":"#F2EDE1"},
+    {"id":"color-ink","type":"color","label":"Ink","default":"#17140F"},
+    {"id":"color-accent","type":"color","label":"Accent (one use per shot)","default":"#B5342A"},
+    {"id":"hook-a","type":"string","label":"Hook line 1","default":"15 planted."},
+    {"id":"hook-b","type":"string","label":"Hook line 2","default":"0 leaked."},
+    {"id":"install","type":"string","label":"Install command","default":"pi install npm:pi-privacy-gate"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>pi-privacy-gate — 15 planted, 0 leaked</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("assets/fonts/archivo-black.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Plex Mono";
+        src: url("assets/fonts/plex-mono-400.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Plex Mono";
+        src: url("assets/fonts/plex-mono-600.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+      }
+
+      :root {
+        --paper: #f2ede1;
+        --ink: #17140f;
+        --accent: #b5342a;
+        --display: "Archivo Black", sans-serif;
+        --mono: "Plex Mono", monospace;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--display);
+      }
+      /* ---- shared visual vocabulary (used by every scene) ---- */
+      .page {
+        position: absolute;
+        background: #fffdf7;
+        box-shadow: 0 18px 44px rgba(23, 20, 15, 0.12);
+      }
+      .sceneline {
+        position: relative;
+        font-family: var(--mono);
+        font-weight: 400;
+        white-space: pre;
+        color: var(--ink);
+      }
+      .sceneline .bar {
+        position: absolute;
+        background: var(--ink);
+        transform-origin: left center;
+      }
+      .tag {
+        font-family: var(--mono);
+        font-weight: 600;
+        text-transform: uppercase;
+        opacity: 0.45;
+      }
+      /* ---- finishing layers, always on top ---- */
+      #grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.035;
+        pointer-events: none;
+        z-index: 90;
+        mix-blend-mode: multiply;
+      }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 91;
+        background: radial-gradient(
+          ellipse 78% 72% at 50% 46%,
+          rgba(23, 20, 15, 0) 40%,
+          rgba(23, 20, 15, 0.06) 100%
+        );
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="13"
+    >
+      <div
+        id="s1"
+        data-composition-id="s1"
+        data-composition-src="compositions/s1.html"
+        data-start="0"
+        data-duration="2.8"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="s2"
+        data-composition-id="s2"
+        data-composition-src="compositions/s2.html"
+        data-start="2.8"
+        data-duration="3.8"
+        data-track-index="2"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="s3"
+        data-composition-id="s3"
+        data-composition-src="compositions/s3.html"
+        data-start="6.6"
+        data-duration="3.0"
+        data-track-index="3"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="s4"
+        data-composition-id="s4"
+        data-composition-src="compositions/s4.html"
+        data-start="9.6"
+        data-duration="2.0"
+        data-track-index="4"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="s5"
+        data-composition-id="s5"
+        data-composition-src="compositions/s5.html"
+        data-start="11.6"
+        data-duration="1.4"
+        data-track-index="5"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <svg id="grain" xmlns="http://www.w3.org/2000/svg">
+        <filter id="grainf">
+          <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" seed="7" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grainf)" />
+      </svg>
+      <div id="vignette"></div>
+    </div>
+    <script>
+      // the root only mounts scenes; the timeline is still registered so tools see it
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

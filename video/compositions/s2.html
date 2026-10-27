@@ -1,0 +1,159 @@
+<template>
+  <style>
+    #s2 {
+      position: absolute;
+      inset: 0;
+      background: var(--paper, #f2ede1);
+      --accent: #b5342a;
+    }
+    #s2-title {
+      position: absolute;
+      left: 120px;
+      top: 96px;
+      font-size: 54px;
+      letter-spacing: -0.02em;
+    }
+    #s2-sub {
+      position: absolute;
+      left: 124px;
+      top: 170px;
+      font-family: var(--mono);
+      font-size: 24px;
+      opacity: 0.6;
+    }
+    #s2-counter {
+      position: absolute;
+      right: 120px;
+      top: 74px;
+      font-family: var(--mono);
+      font-size: 96px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    #s2-cap {
+      position: absolute;
+      right: 122px;
+      top: 184px;
+      font-family: var(--mono);
+      font-size: 21px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.55;
+    }
+    .strip {
+      position: absolute;
+      width: 540px;
+      height: 486px;
+      padding: 26px 30px;
+    }
+    #s2-a {
+      left: 120px;
+      top: 292px;
+    }
+    #s2-b {
+      left: 690px;
+      top: 322px;
+    }
+    #s2-c {
+      left: 1260px;
+      top: 292px;
+    }
+    .strip .tag {
+      font-size: 18px;
+      letter-spacing: 0.2em;
+      margin-bottom: 16px;
+    }
+    .strip .sceneline {
+      font-size: 20px;
+      line-height: 1.72;
+    }
+    .pii {
+      position: relative;
+    }
+    .sceneline .pii .bar {
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      top: 0.16em;
+      bottom: 0.16em;
+      background: var(--ink);
+      transform-origin: left center;
+    }
+  </style>
+
+  <div id="s2" data-composition-id="s2" data-width="1920" data-height="1080">
+    <div id="s2-title">Three documents. Fifteen spans.</div>
+    <div id="s2-sub">no regex list to maintain — a local 596M detector</div>
+
+    <div id="s2-counter">0</div>
+    <div id="s2-cap">spans blackened</div>
+
+    <div id="s2-a" class="strip page">
+      <div class="tag">bank statement</div>
+      <div class="sceneline">ACCT <span class="pii">4026-3181-1900-8877<span class="bar"></span></span></div>
+      <div class="sceneline">ROUTING <span class="pii">021000021<span class="bar"></span></span></div>
+      <div class="sceneline">SWIFT <span class="pii">BOFAUS3N<span class="bar"></span></span></div>
+      <div class="sceneline"><span class="pii">support@lumenline.net<span class="bar"></span></span></div>
+      <div class="sceneline">BALANCE 109.99</div>
+      <div class="sceneline">INVOICE INV-1006</div>
+    </div>
+
+    <div id="s2-b" class="strip page">
+      <div class="tag">medical note</div>
+      <div class="sceneline">PATIENT <span class="pii">Daniel Whitfield<span class="bar"></span></span></div>
+      <div class="sceneline">DOB <span class="pii">1992-03-14<span class="bar"></span></span></div>
+      <div class="sceneline">MRN <span class="pii">8877-4412<span class="bar"></span></span></div>
+      <div class="sceneline">SURGEON <span class="pii">Dr. Elena Marsh<span class="bar"></span></span></div>
+      <div class="sceneline">POLICY <span class="pii">NH-2211-88<span class="bar"></span></span></div>
+      <div class="sceneline">PROCEDURE cholecystectomy</div>
+    </div>
+
+    <div id="s2-c" class="strip page">
+      <div class="tag">parking ticket</div>
+      <div class="sceneline">TICKET <span class="pii">9012345678<span class="bar"></span></span></div>
+      <div class="sceneline">PLATE <span class="pii">DC-44X7<span class="bar"></span></span></div>
+      <div class="sceneline">OWNER <span class="pii">Daniel Whitfield<span class="bar"></span></span></div>
+      <div class="sceneline">ADDR <span class="pii">221B Baker Street<span class="bar"></span></span></div>
+      <div class="sceneline">PHONE <span class="pii">(202) 555-0199<span class="bar"></span></span></div>
+      <div class="sceneline">FINE 45.00</div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const E_IN = "power4.out";
+    const E_SLAM = "power3.in";
+
+    tl.fromTo("#s2-title", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.34, ease: E_IN }, 0.12);
+    tl.fromTo("#s2-sub", { opacity: 0 }, { opacity: 1, duration: 0.28, ease: E_IN }, 0.34);
+    tl.fromTo("#s2-counter", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, 0.12);
+    tl.fromTo("#s2-cap", { opacity: 0 }, { opacity: 0.55, duration: 0.2, ease: "none" }, 0.18);
+
+    tl.fromTo("#s2-a", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.36, ease: E_IN }, 0.26);
+    tl.fromTo("#s2-b", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.36, ease: E_IN }, 0.38);
+    tl.fromTo("#s2-c", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.36, ease: E_IN }, 0.5);
+
+    // DOM order is strip-a(4 bars), strip-b(5), strip-c(5) = 14 visible lines with bars;
+    // the 15th span is the balance line's account repeat — counted, not shown as a bar
+    const bars = gsap.utils.toArray("#s2 .bar");
+    const order = [0, 4, 9, 1, 5, 10, 2, 6, 11, 3, 7, 12, 8, 13];
+    const T0 = 0.82;
+    order.forEach((idx, i) => {
+      const t = T0 + i * 0.055;
+      tl.fromTo(bars[idx], { scaleX: 0 }, { scaleX: 1, duration: 0.16, ease: E_SLAM }, t);
+      tl.set("#s2-counter", { textContent: String(i + 1) }, t + 0.02);
+    });
+    tl.set("#s2-counter", { textContent: "15" }, T0 + 14 * 0.055 + 0.02);
+    tl.to("#s2-counter", { color: "var(--accent)", duration: 0.12, ease: "none" }, T0 + 14 * 0.055 + 0.02);
+
+    tl.fromTo(
+      "#s2",
+      { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(7px)", duration: 0.18, ease: "power2.in" },
+      3.62,
+    );
+
+    window.__timelines["s2"] = tl;
+  </script>
+</template>
