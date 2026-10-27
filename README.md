@@ -1,5 +1,7 @@
 # pi-privacy-gate
 
+[![npm](https://img.shields.io/npm/v/pi-privacy-gate)](https://www.npmjs.com/package/pi-privacy-gate)
+
 **15 planted. 0 leaked.**
 
 Your coding agent reads a bank statement, a medical note, a `.env`. This gate blackens
