@@ -1,11 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { Qwen3Bpe, chunkText } from "../src/tokenizer.ts";
 
 const SPIKE = fileURLToPath(new URL("../spike/", import.meta.url));
-const bpe = Qwen3Bpe.fromTokenizerJson(JSON.parse(readFileSync(SPIKE + "tokenizer.json", "utf8")));
+const MODEL_DIR = process.env.PII_TEST_MODEL_DIR ??
+  (existsSync(join(homedir(), ".pi-privacy", "model", "tokenizer.json"))
+    ? join(homedir(), ".pi-privacy", "model")
+    : SPIKE);
+const bpe = Qwen3Bpe.fromTokenizerJson(JSON.parse(readFileSync(MODEL_DIR + "/tokenizer.json", "utf8")));
 
 const CANONICAL = "Hi, I'm Daniel Whitfield, you can reach me at daniels@meridiancap.com or 415-555-0123.";
 // golden ids from llama-server /tokenize (spike REPORT.md)

@@ -8,6 +8,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { PiiDetector } from "../src/detector.ts";
 import { PrivacyGate, DEFAULT_WITHHOLD_CATEGORIES, DEFAULT_REDACT_CATEGORIES } from "../src/gate.ts";
 
@@ -15,7 +17,13 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SPIKE = ROOT + "spike/";
 const CANARY = ROOT + "bench/canary/";
 const BENIGN = ROOT + "bench/benign/";
-const MODEL_DIR = process.env.PII_TEST_MODEL_DIR ?? SPIKE;
+/** Installed detector weights (from /privacy-setup); falls back to a local spike checkout. */
+function defaultModelDir(): string {
+  const installed = join(homedir(), ".pi-privacy", "model");
+  return existsSync(join(installed, "tokenizer.json")) ? installed : SPIKE;
+}
+
+const MODEL_DIR = process.env.PII_TEST_MODEL_DIR ?? defaultModelDir();
 const SERVER = process.env.PII_TEST_SERVER ?? "http://127.0.0.1:8080";
 
 async function serverUp(): Promise<boolean> {
