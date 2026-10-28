@@ -23,7 +23,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | A-3 | A | Allowlist predicate: content referenced by an entry in the allowlist (`/privacy-allow file|session`) bypasses A-1/A-2 |
 | D-1 | D | Fail-closed: when the detector or local model is unavailable for a sensitive request, the request MUST NOT be sent to a cloud provider. Retry `retryTimeout` (default 5s), then block with an explanatory error |
 | D-2 | D | When `privacy-router.json` has no valid `localModel`, all sensitive requests MUST be blocked with an instructive error |
-| D-3 | D | The answer of `privacy_analyze` MUST pass through the detector before entering conversation context (spans redacted per A-2) |
+| D-3 | D | The answer of `privacy_analyze` MUST pass through the detector before entering conversation context (spans redacted per A-2), and numeric runs echoed verbatim from the withheld source MUST be masked by the layer-1 diff. Paraphrase/computed values absent from the source are out of scope (known limit) |
 | D-4 | D | Injected sections (system prompt, memory, AGENTS.md, skills) are exempt from the gate. The gate scans user messages and tool results only |
 | D-5 | D | Gate mechanisms MUST NOT rely on prompt instructions ("do not send my data") — enforcement is outside the LLM |
 | E-1 | E | Canary suite results: 4/4 synthetic files (bank CSV, ISP agreement, medical note, parking ticket) withheld on A-1 categories; benign corpus (4 files) — 0 withholds, 1 false-positive span (2026-10-26) |

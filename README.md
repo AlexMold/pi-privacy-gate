@@ -109,6 +109,11 @@ detector's port is `detector.port` → `PI_PRIVACY_PORT` → `18080`.
   your agent's memory goes to the cloud.
 - **Your disk.** The gate guards the way out, not the files on your machine.
 - **Images in tool results.** v1 scans text only.
+- **Paraphrase and computed values.** The detector finds PII spans, not meaning. If a
+  question about a withheld file produces a *derived* answer ("the total minus tax" =
+  a number the document never contains), no span classifier can catch it. `privacy_analyze`
+  adds a verbatim-diff backstop for numbers quoted from the file, and the local model is
+  told to quote, not compute — but a determined paraphrase is out of scope for v1.
 
 Scanning costs time: about 0.35 ms per token in 1024-token windows. A large file adds a
 second or two. [Measurements](https://github.com/AlexMold/pi-privacy-gate/blob/main/docs/detector-spike-report.md).

@@ -26,7 +26,23 @@ export const ANALYZE_SYSTEM_PROMPT = [
   "You answer questions about a private document shown below.",
   "Answer factually and concisely from the document only.",
   "Never invent data that is not in the document.",
+  "Quote values from the document exactly as written; do not compute derived values.",
 ].join("\n");
+
+const NUM_RUN_RE = /[0-9][0-9.,$\s-]*[0-9]/g;
+const MIN_NUM_RUN = 4;
+
+/**
+ * Layer-1 backstop for privacy_analyze answers (Scott's paraphrase gap): mask
+ * literal numeric runs from the answer that also appear in the withheld source.
+ * Covers what the span classifier misses (amounts, plain numbers). Does NOT
+ * catch computed values absent from the source - that is a known limit, not a bug.
+ */
+export function diffMask(answer: string, doc: string): string {
+  return answer.replace(NUM_RUN_RE, (run) =>
+    run.length >= MIN_NUM_RUN && doc.includes(run) ? "[REDACTED_verbatim]" : run,
+  );
+}
 
 export async function analyzeWithheld(
   fileRef: string,
@@ -46,7 +62,7 @@ export async function analyzeWithheld(
   );
   try {
     const masked = await rescan(answer);
-    return { content: masked };
+    return { content: diffMask(masked, entry.content) };
   } catch (e) {
     // D-3 fail-closed: an unverified answer must not enter context
     return { content: `pi-privacy: could not verify the answer for PII (${(e as Error).message}); answer withheld.`, isError: true };
