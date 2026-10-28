@@ -1,6 +1,6 @@
 {
   "name": "pi-privacy-gate",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Privacy gate for Pi: local PII detection, span redaction, file withholding, and local-model analysis. Cloud orchestrates, private content stays local.",
   "license": "MIT",
   "type": "module",
