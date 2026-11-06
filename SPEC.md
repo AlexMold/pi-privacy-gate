@@ -30,6 +30,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | E-2 | E | PII-TRACE (full 500-conversation release, 2653 gold spans): micro exact typed-span F1 72.7% (P 70.8 / R 74.7), untyped F1 80.8%. Per-label: account_number recall 98% (220/224) with 373 FP; secret recall 18.6% (39/210); other_pii recall 1.4% (3/211) |
 | E-3 | E | Dogfooding (2026-10-26, 3 scripted sessions with privacy/auto on google/gemini-3.7-flash): run 1 — withhold held, privacy_analyze failed on stale ollama catalog (fixed: refresh fallback); run 2 — found mask self-trigger recursion (fixed: SPEC A-2 format); run 3 — full E2E green, cloud saw only [REDACTED_*]. Journal: bench/dogfood-journal.md |
 | E-4 | E | Egress proof (2026-10-27): real pi session, gate ON via session-time model selection, 4 canary files read; the exact serialized outbound provider payload captured at `before_provider_request`; 15 planted PII markers (all withhold + redact categories) — none present in the payload. Target model 404s on localhost, so nothing left the machine. Method: `npm run egress:proof` (scripts/egress-proof.ts). Limitation: first outbound request only (the local target 404s, so multi-turn payloads were not exercised) |
+| E-5 | E | Secrets canary (2026-11-06, v0.3): default rules pack (52 rules, gitleaks v8.30.1 curated + 1 clean-room DB-URL rule). 5/5 planted synthetic files flagged (`.env` keys, webhook, DB URLs, JWT, PEM); 1/1 benign fixture (upstream doc-example values: AWS `...EXAMPLE`, stopword-suppressed generic key) — 0 spans. Compiler: 215/221 upstream rules compile to JS RegExp (7 skipped, reported at build). Method: `node --test test/secrets-canary.test.ts`, corpus generated at runtime (test/secretFixtures.ts — deterministic keys, no key-shaped literals in the repository, same file layouts as the recorded run). Separate claim from E-2: different corpus (planted real-format keys vs PII-TRACE synthetic), numbers never merged (C.16) |
 
 ## Design tree (settled decisions)
 
@@ -49,6 +50,7 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
 | 12 | Session control | `/privacy on|off|status` — gate active only when the session model is `privacy/auto` |
 | 13 | Platforms | macOS + Linux; Windows out of v1 |
 | 14 | Non-goals | Injected context protection (D-4, documented); local disk (transcripts on the user's machine are out of scope) |
+| 15 | Secret rules layer (M7, v0.3) | Deterministic rules (vendored gitleaks v8.30.1, MIT, pin `83d9cd68`) emit `secret`-labeled spans merged with ML spans (rule span wins ties); config `secretRules: "off" \| "loyal" \| "default" \| "all"` (default pack = 52 curated rules). Loyal: rule-origin secrets redact in place (A-2) instead of withholding (A-1); ML-detected secrets unchanged. Entropy-only detectors, path rules, custom user rules out of scope |
 
 ## Config schema (privacy-router.json)
 
@@ -62,9 +64,15 @@ these IDs; a test that checks a norm without citing its ID fails the M6 lint.
   "retryTimeoutSec": 5,
   "spanConfidenceThreshold": 0.5,
   "sensitivityThreshold": 0.5,
+  "secretRules": "default",
   "allowlist": []
 }
 ```
+
+`secretRules` — deterministic secret-rules layer (design tree #15): `"off"`,
+`"loyal"` (rule-detected secrets redact in place, no file withholding),
+`"default"` (52 curated high-signal rules) or `"all"` (215 rules). Rule spans are
+labeled `secret` and flow through the same withhold/redact predicates as ML spans.
 
 `spanConfidenceThreshold` / `sensitivityThreshold` are calibration points (A.20): defaults
 declared, recalibration documented after M6 measurements.
@@ -76,11 +84,14 @@ AssuranceResult:
   targetClaimRef:  "In privacy/auto mode, no PII span of withhold categories from tool
                     results or user messages egresses to the cloud provider"
   assuranceUse:    public 0.x release (npm pi-privacy-gate) + continued dogfooding
-  basisRefs:       E-1 (canary), E-2 (PII-TRACE), E-3 (dogfooding), E-4 (egress proof), unit tests (49)
+  basisRefs:       E-1 (canary), E-2 (PII-TRACE), E-3 (dogfooding), E-4 (egress proof),
+                   E-5 (secrets canary, v0.3 rules layer), unit tests (73)
   disposition:     supported-for-use (local v1), with limitations below
   limitationsAndNotCarried:
-    - secret recall 18.6% on PII-TRACE synthetic secrets (real API keys detected well in
-      spike; synthetic credential formats are missed) — secret is best-effort
+    - secret detection is two-layer since v0.3: deterministic rules (E-5: 5/5 planted
+      real-format keys, doc examples suppressed) + PII-Tracer ML (E-2: secret recall
+      18.6% on PII-TRACE synthetic secrets). ML secret detection remains best-effort;
+      the rules layer covers provider-specific key formats only
     - other_pii recall 1.4% — the detector rarely emits this label
     - account_number: 373 FP on benchmark -> extra withholds (friction, safe direction)
     - injected context (memory/AGENTS.md/skills) is exempt by design (D-4)
@@ -88,10 +99,16 @@ AssuranceResult:
     - Windows unsupported; detector-down user-message blocking relies on context
       replacement, not provider-level refusal
     - PII-TRACE is a controlled synthetic benchmark, not deployment-level evidence
+    - rules layer carries no entropy-only detectors, no path-based rules, no gitleaks
+      path/line allowlists (7 upstream rules skipped, reported at build; extra matches
+      possible where upstream line-level suppression would have applied)
   reopenCondition:
     - demonstrated egress incident in dogfooding or red-team
     - PII-Tracer weights update, retraction, or license change
+    - gitleaks upstream ruleset update: the vendored pin (v8.30.1) is current as of
+      2026-11-06 — refreshing is a decision, not an automatic pull
     - Pi changes semantics of tool_result / context / virtual-model hooks
-    - latency budget exceeded (currently ~0.35ms/token + ~70ms/request, 1024-token windows)
+    - latency budget exceeded (currently ~0.35ms/token + ~70ms/request, 1024-token windows;
+      rules add ~2.7ms per 10KB scan, E-5 method)
     - threshold recalibration on real deployment data shows material F1 drop
 ```

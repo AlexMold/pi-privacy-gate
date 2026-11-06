@@ -7,6 +7,8 @@ export interface PredictedSpan {
   end: number;
   label: string; // e.g. "private_person"
   score: number;
+  /** "rule" = deterministic secret-rules layer (M7); absent = ML detector */
+  origin?: "rule";
 }
 
 export interface HeadConfig {

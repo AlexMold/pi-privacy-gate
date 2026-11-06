@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { DEFAULT_WITHHOLD_CATEGORIES, DEFAULT_REDACT_CATEGORIES } from "./gate.ts";
+import { isSecretRulesMode, type SecretRulesMode } from "./secretRules.ts";
 import type { DetectorConfig } from "./scanners.ts";
 
 /** resolved lazily so tests can set PI_PRIVACY_DIR before first use */
@@ -35,6 +36,8 @@ export interface PrivacyConfig {
   sensitivityThreshold: number;
   /** "file:<path>" or "session:<id>" entries (A-3) */
   allowlist: string[];
+  /** deterministic secret-rules layer: off / loyal (redact in place) / default pack / all */
+  secretRules: SecretRulesMode;
 }
 
 export function defaultConfig(): PrivacyConfig {
@@ -51,6 +54,7 @@ export function defaultConfig(): PrivacyConfig {
     spanConfidenceThreshold: 0.5,
     sensitivityThreshold: 0.5,
     allowlist: [],
+    secretRules: "default",
   };
 }
 
@@ -70,6 +74,7 @@ export function loadConfig(): PrivacyConfig {
       spanConfidenceThreshold: raw.spanConfidenceThreshold ?? d.spanConfidenceThreshold,
       sensitivityThreshold: raw.sensitivityThreshold ?? d.sensitivityThreshold,
       allowlist: raw.allowlist ?? [],
+      secretRules: isSecretRulesMode(raw.secretRules) ? raw.secretRules : d.secretRules,
     };
   } catch (e) {
     throw new Error(`privacy-router.json is not valid JSON: ${(e as Error).message}`);

@@ -1,6 +1,6 @@
 {
   "name": "pi-privacy-gate",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Privacy gate for Pi: local PII detection, span redaction, file withholding, and local-model analysis. Cloud orchestrates, private content stays local.",
   "license": "MIT",
   "type": "module",
@@ -44,6 +44,12 @@
     "lint:claims": "node scripts/lint-claims.ts",
     "bench:fetch": "node scripts/fetch-piitrace.ts",
     "bench:piitrace": "node scripts/benchmark.ts",
-    "egress:proof": "node scripts/egress-proof.ts"
+    "egress:proof": "node scripts/egress-proof.ts",
+    "rules:vendor": "node scripts/vendor-gitleaks.ts",
+    "rules:compile": "node scripts/compile-gitleaks.ts"
+  },
+  "devDependencies": {
+    "js-yaml": "^5.5.0",
+    "smol-toml": "^1.9.1"
   }
 }

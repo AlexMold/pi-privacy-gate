@@ -27,6 +27,8 @@ export interface GateConfig {
   redactCategories: string[];
   spanConfidenceThreshold: number;
   retryTimeoutSec: number;
+  /** labels that never trigger withhold when span origin is "rule" (loyal mode: rule-detected secrets redact in place, A-2 instead of A-1) */
+  redactOnlyLabels?: Set<string>;
 }
 
 export const DEFAULT_GATE_CONFIG: GateConfig = {
@@ -74,7 +76,12 @@ export class PrivacyGate {
     const spans = raw.filter((s) => s.score >= this.config.spanConfidenceThreshold);
     const categories = [...new Set(spans.map((s) => s.label))];
     let decision: GateDecision;
-    if (spans.some((s) => this.config.withholdCategories.includes(s.label))) {
+    const shouldWithhold = spans.some(
+      (s) =>
+        this.config.withholdCategories.includes(s.label) &&
+        !(this.config.redactOnlyLabels?.has(s.label) && s.origin === "rule"),
+    );
+    if (shouldWithhold) {
       decision = { action: "withhold", categories, spans };
     } else if (spans.length > 0) {
       decision = { action: "redact", categories, spans, masked: maskText(text, spans) };

@@ -14,10 +14,14 @@ import { analyzeWithheld } from "../src/analyze.ts";
 import { maskText } from "../src/viterbi.ts";
 import { loadConfig, saveConfig, isLocalModelValid, configFile, type PrivacyConfig } from "../src/config.ts";
 import { HttpScanner, CommandScanner, type SpanScanner } from "../src/scanners.ts";
+import { createSecretRuleScanner, dedupeSpans, type SecretRuleScanner } from "../src/secretRules.ts";
+import type { PredictedSpan } from "../src/viterbi.ts";
 
 let detector: SpanScanner | null = null;
 let gate: PrivacyGate | null = null;
 let config: PrivacyConfig | null = null;
+/** deterministic secret-rules layer; null = off (scan path identical to v0.2.1) */
+let secretScanner: SecretRuleScanner | null = null;
 /** per-session: physical model in use right before /privacy on — route fallback and /privacy off target */
 const preOnModels = new Map<string, { provider: string; id: string }>();
 
@@ -36,11 +40,15 @@ function initGate(): PrivacyGate | null {
   if (!gate) {
     try {
       detector = buildScanner(config, state);
-      gate = new PrivacyGate((text) => detector!.scan(text), {
+      secretScanner = createSecretRuleScanner(config.secretRules);
+      gate = new PrivacyGate((text) => scanWithSecretRules(text), {
         withholdCategories: config.withholdCategories,
         redactCategories: config.redactCategories,
         spanConfidenceThreshold: config.spanConfidenceThreshold,
         retryTimeoutSec: config.retryTimeoutSec,
+        // loyal mode: rule-origin secrets redact in place (A-2), never withhold (A-1);
+        // ML-detected secrets keep the configured withhold behavior
+        ...(config.secretRules === "loyal" ? { redactOnlyLabels: new Set(["secret"]) } : {}),
       });
     } catch (e) {
       console.error(`pi-privacy: gate unavailable: ${(e as Error).message}`);
@@ -48,6 +56,18 @@ function initGate(): PrivacyGate | null {
     }
   }
   return gate;
+}
+
+/**
+ * Composite scan (M7): ML detector + deterministic rules over the SAME text, so span
+ * offsets stay in one coordinate space for the gate's maskText. Rule spans are listed
+ * first so dedupeSpans keeps a maximal rule match on ties (rule span wins).
+ */
+async function scanWithSecretRules(text: string): Promise<{ spans: PredictedSpan[] }> {
+  if (!secretScanner || !detector) return detector!.scan(text);
+  const ruleSpans = secretScanner.scan(text);
+  const { spans } = await detector.scan(text);
+  return { spans: dedupeSpans([...ruleSpans, ...spans]) };
 }
 
 /** Detector backend selection (SPEC design tree #4): managed / http / command. */

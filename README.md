@@ -74,6 +74,7 @@ the rest of the file still reaches the model.
   "redactCategories":   ["private_person", "private_email", "private_phone", "private_url", "private_date", "other_pii"],
   "retryTimeoutSec": 5,
   "spanConfidenceThreshold": 0.5,
+  "secretRules": "default",
   "allowlist": []
 }
 ```
@@ -83,6 +84,19 @@ the rest of the file still reaches the model.
 - `retryTimeoutSec` — how long to wait for the detector before failing closed.
 - `spanConfidenceThreshold` — how sure the detector must be before it acts.
 - `allowlist` — filled by `/privacy-allow file:/path` or `/privacy-allow session:<id>`.
+- `secretRules` — deterministic secret detection (v0.3). Rules from
+  [gitleaks](https://github.com/gitleaks/gitleaks) (MIT, pinned v8.30.1) run next to the
+  ML detector and catch provider keys by format: AWS, GCP, Azure, GitHub/GitLab, OpenAI,
+  Anthropic, Slack, Stripe, private keys, JWTs, DB URLs with embedded passwords, and a
+  generic key rule with upstream false-positive suppression. The ML detector misses
+  synthetic secret formats ([PII-TRACE recall 18.6%](https://github.com/AlexMold/pi-privacy-gate/blob/main/SPEC.md));
+  the rules layer covers exactly that gap. Values:
+  - `"default"` — 52 curated high-signal rules. Right for most sessions.
+  - `"loyal"` — same detection, but rule-detected secrets are blackened in place
+    (`[REDACTED_SECRET]`) instead of withholding the whole file. Lowest friction; the
+    rest of the file stays visible to the model.
+  - `"all"` — every rule that compiles (215). Louder; expect more withheld files.
+  - `"off"` — ML detector only.
 
 **Your own detector.** By default the gate runs PII-Tracer through a `llama-server` it
 installs and supervises itself. If you already run something else, point it at it and the
@@ -126,7 +140,7 @@ BIOES Viterbi decoder are a pure-TypeScript port, verified byte-exact against th
 client, so no Python is needed. Inspired by Perplexity's Hybrid Compute.
 
 ```bash
-npm test           # 49 tests; detector tests skip without a running llama-server
+npm test           # 73 tests; detector tests skip without a running llama-server
 npm run egress:proof   # replant 15 secrets and prove none escapes
 ```
 

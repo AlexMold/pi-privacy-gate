@@ -1,11 +1,53 @@
 # TODO
 
 ## Goal
-A locally working v1 of **pi-privacy-gate**: a PII gate for Pi (PII Tracer GGUF detector
-via llama-server, tool-result withhold/redact, `privacy_analyze` on the local model,
-fail-closed), verified by a canary suite, the PII-TRACE benchmark, and dogfooding.
+v0.3 of **pi-privacy-gate**: a deterministic secret-rules layer (vendored gitleaks patterns,
+curated default subset) merged into the scan pipeline, adding coverage for real-format
+provider keys where the ML detector misses (E-2: secret recall 18.6%). Rule hits are
+spans labeled `secret` and feed the existing A-1/A-2 machinery unchanged. Evidence for
+rules lands as a separate claim (E-5); E-2 stays untouched (no recall numbers are merged
+across corpora — C.16 scope boundary).
 
 ## Tasks
+
+### 8. M7 — Secret rules layer (v0.3, this plan)
+- [x] Vendor gitleaks rules as `vendor/gitleaks.yaml` (converted from the pinned gitleaks
+      TOML release, source version + commit + MIT attribution recorded in
+      `vendor/README.md`); `js-yaml` + `smol-toml` added as devDependencies, build-time only
+- [x] `scripts/compile-gitleaks.ts`: YAML → TS rules file `src/rules/gitleaks.ts`
+      (id, description, pattern, default flag); attempts JS RegExp compilation for every
+      rule, skips and reports incompatible ones; target: ≥150 rules compile of ~180;
+      fails loudly if any curated default rule ID is missing from the vendored YAML
+      (build-step constraint validity, A.20)
+- [x] Curated default subset: explicit rule-ID list in the compile script (cloud keys:
+      AWS/GCP/Azure, VCS: GitHub/GitLab, AI providers: OpenAI/Anthropic, private keys,
+      JWTs, DB/URL connection strings, generic-api-key) marked `default: true`; the rest
+      available via config
+- [x] Rule engine `src/secretRules.ts`: rules → `PredictedSpan[]` with label `secret`
+      (the 9-label set of L-1 is not extended — A.6.B atomic claims, A.11 parsimony),
+      score 1.0 (exact pattern match; participates in spanConfidenceThreshold gating —
+      documented), char offsets; overlap dedupe (one span per maximal match); bounded work
+      (no catastrophic backtracking — each rule compiled once, tested against 10KB input)
+- [x] Config: `secretRules: "off" | "loyal" | "default" | "all"` in privacy-router.json
+      (default `"default"`), parsed and validated in `src/config.ts`. Loyal = rule-detected
+      secrets are redacted in place (A-2) instead of withholding the whole tool result
+      (A-1); predicates unchanged, mode changes only which predicate applies
+- [x] Wire composite scan fn in `extensions/index.ts` `initGate()`: ML spans + rule spans
+      merged (dedupe overlapping spans, rule span wins), feeding `PrivacyGate.decide`
+      unchanged; with `"off"` the pipeline is byte-identical to v0.2.1 on the existing
+      test suite (regression witness, A.20)
+- [x] Unit tests (`test/secretRules.test.ts` + gate integration): canonical secrets
+      (AWS key, GitHub PAT, OpenAI sk- key, PEM private key, JWT, postgres://user:pass URL)
+      → withhold with `secret` category on default; loyal → redact in place, no withhold;
+      all → full pack; off → no rule spans; tests cite Claim Register IDs
+      (passes `npm run lint:claims`)
+- [x] Evidence: secrets canary corpus (planted real-format test keys) → new E-5 entry in
+      SPEC.md as its own claim (rule-layer corpus only; never merged with E-2 numbers);
+      update assurance card: limitations now name both layers, reopen condition added for
+      "gitleaks upstream ruleset update (vendored pin — refresh is a decision)";
+      update README (config key incl. loyal mode, rule coverage, "secret is best-effort"
+      wording)
+- [x] Version bump 0.2.1 → 0.3.0 in package.json
 
 ### 0. Repo & skeleton
 - [x] `git init`, `.gitignore` (node_modules, model weights, artifacts)
@@ -68,6 +110,42 @@ fail-closed), verified by a canary suite, the PII-TRACE benchmark, and dogfoodin
 - [ ] `npm publish` + push (waiting for explicit go)
 
 ## Notes
+- **FPF review of this plan (2026-11-06), findings applied:**
+  - A.6.B / A.11: `loyal` mode must not create a 10th PII label — rules emit `secret`,
+    mode changes only which predicate (A-1 vs A-2) applies. A new label = L-1 amendment
+    with its own decision.
+  - A.20: rule span score is a declared constant (1.0), not measured confidence; it must
+    stay above any user-set `spanConfidenceThreshold` or the layer silently no-ops —
+    test covers this.
+  - A.10 / C.16: E-2 (ML, PII-TRACE) and E-5 (rules, real-format key corpus) stay separate
+    claims on separate corpora; no combined "recall" number may be published.
+  - A.20 on the build step: compile script fails loudly when a curated rule ID is missing
+    from the vendored YAML (IDs drift between gitleaks releases).
+  - G.11/currentness: vendored pin creates an update obligation — reopen condition added
+    to the assurance card.
+- **M7 scope exclusions (v0.3):** no custom user regex rules (separate gap), no
+  tool-call argument scanning (separate gap, blind spot #7), no entropy-only detectors
+  (gitleaks entropy rules skipped — regex rules only in v0.3), no interactive
+  allow/redact prompts (design-tree decision #1 stays).
+- **Licensing:** gitleaks is MIT; vendored YAML keeps the license header, source pin and
+  conversion note in vendor/README.md. Runtime stays dependency-free; js-yaml is
+  build/dev-time only.
+- **FP posture:** curated default (not full pack) because account_number already yields
+  373 benchmark FP — a loud secret pack would add withhold friction to every session.
+  `loyal` mode is the low-friction option: detection stays on, whole-file withhold
+  switches to in-place redaction (weaker than withhold — the rest of the file stays
+  visible; that is the explicit trade-off of the mode).
+- **What M7 does NOT change:** claim IDs A-1/A-2/D-1/D-5 machinery untouched; rule hits
+  are just spans labeled `secret`, which is already in DEFAULT_WITHHOLD_CATEGORIES.
+  PII-TRACE secret recall (synthetic, E-2) stays as-is — rules evidence lands in E-5
+  on real-format provider keys instead.
+- **Implementation note (discovered during execution, same intent as the plan):**
+  "feeding PrivacyGate.decide unchanged" was not fully possible — loyal mode needs the
+  gate to distinguish rule-origin spans from ML spans (same label `secret`). Landed as
+  an optional `origin?: "rule"` field on PredictedSpan + `redactOnlyLabels` gate option;
+  predicates themselves unchanged. Also `secrets-canary.test.ts` added beyond the plan
+  text (plan said "canary corpus"; it needed a test to run it).
+- **npm publish stays out of scope** (waiting for explicit go, as before).
 - **Platforms:** macOS + Linux download paths; Windows out of v1.
 - **Design-tree decisions:** two-tier via privacy_analyze; PII Tracer GGUF; self-managed
   /privacy-setup with pluggable http/command detector backends; fail-closed retry→block;

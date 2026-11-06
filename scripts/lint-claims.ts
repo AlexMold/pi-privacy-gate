@@ -10,7 +10,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SPEC = readFileSync(ROOT + "SPEC.md", "utf8");
 
 // test files that check boundary claims (mechanism tests like tokenizer/viterbi are exempt)
-const GATE_TEST_FILES = ["gate.test.ts", "gate-retry.test.ts", "analyze.test.ts", "config.test.ts", "canary.test.ts"];
+const GATE_TEST_FILES = ["secretRules.test.ts", "secrets-canary.test.ts", "gate.test.ts", "gate-retry.test.ts", "analyze.test.ts", "config.test.ts", "canary.test.ts"];
 const ID_RE = /\b[LADE]-\d+\b/g;
 
 let failures = 0;
